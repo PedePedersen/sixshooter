@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Six Shooter</title>
 <!--
   Six Shooter — selvstændig HTML-app (åbn direkte i browseren).
@@ -28,11 +28,16 @@
     font-family: 'BleedingCowboys';
     src: url('assets/BleedingCowboys.ttf') format('truetype');
   }
-  html { height: 100%; }
-  body {
+  /* Baggrunden ligger på html-elementet, så pergamentet dækker HELE
+     skærmen — også bag status bar/notch/kamerahul (viewport-fit=cover).
+     Indholdet respekterer stadig safe-area-insets nedenfor. */
+  html {
+    height: 100%;
     background-image: url('assets/paper.webp');
     background-repeat: repeat;
     background-size: auto;
+  }
+  body {
     font-family: 'OldNewspaperTypes', monospace;
     color: var(--graa-moerk);
     margin: 0;
@@ -49,7 +54,12 @@
     flex-direction: column;
     align-items: center;
     gap: 3.5vw;
-    padding: 4vw 0 max(6vw, env(safe-area-inset-bottom));
+    /* Safe-area-insets på alle fire sider, så UI'et ikke gemmes bag
+       notch/kamerahul, selvom baggrunden strækker sig derind. */
+    padding: max(4vw, env(safe-area-inset-top))
+             env(safe-area-inset-right)
+             max(6vw, env(safe-area-inset-bottom))
+             env(safe-area-inset-left);
   }
   /* Hovedsiden: titel øverst, footer nederst — auto-margener på begge
      absorberer den ledige plads ligeligt, så tromle/resultat/knapper
@@ -79,7 +89,7 @@
   .ss-hjoerne-gruppe {
     position: fixed;
     top: max(3vw, env(safe-area-inset-top));
-    right: 3vw;
+    right: max(3vw, env(safe-area-inset-right));
     display: flex;
     gap: 10px;
     z-index: 10;
@@ -100,7 +110,7 @@
   .ss-hjoerne-fast {
     position: fixed;
     top: max(3vw, env(safe-area-inset-top));
-    right: 3vw;
+    right: max(3vw, env(safe-area-inset-right));
     z-index: 10;
   }
 
