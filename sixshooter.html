@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Iggy eller Alma?</title>
+<!--
+  Lokalt legeværktøj — IKKE en del af spillet, deployes ikke.
+  Six Shooter — udgangspunkt: kopi af Gallows Creek-legeværktøjet
+  iggy-alma-picker.html (Iggy/Alma-tromlen). Assets ligger som filer i
+  assets/ (fonte, pergament-baggrund, spin.mp3 + bang.wav/klik.wav).
+
+  Genbruger Gallows Creeks tromle-animation (btAnimerTromle-flowet),
+  spin.mp3, pergament-tekstur og fonte. Tromlen har 2 grønne + 2 sorte
+  patroner + 2 tomme kamre: grøn øverst = Iggy vinder, sort øverst =
+  Alma vinder, tomt kammer øverst = ingen vinder. Udfaldet bestemmes på
+  forhånd (1/3 hver), og animationen lander på et kammer af den rigtige
+  slags. Layout er optimeret til høj/smal mobilskærm (9:21).
+-->
+<style>
+  :root {
+    --brun:            #7b4c20;
+    --brun-moerk:      #4a2a00;
+    --graa-moerk:      #2b2b2b;
+    --skygge:          rgba(0,0,0,0.5);
+    --iggy-groen:      #3a5c2a;
+    --alma-sort:       #1a1814;
+  }
+  @font-face {
+    font-family: 'OldNewspaperTypes';
+    src: url('assets/OldNewspaperTypes.ttf') format('truetype');
+  }
+  @font-face {
+    font-family: 'BleedingCowboys';
+    src: url('assets/BleedingCowboys.ttf') format('truetype');
+  }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background-image: url('assets/paper.webp');
+    background-repeat: repeat;
+    background-size: auto;
+    font-family: 'OldNewspaperTypes', monospace;
+    color: var(--graa-moerk);
+    height: 100dvh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-sizing: border-box;
+    padding: 3vw 0 max(3vw, env(safe-area-inset-bottom));
+    -webkit-tap-highlight-color: transparent;
+  }
+  h1 {
+    font-family: 'BleedingCowboys', 'OldNewspaperTypes', serif;
+    font-size: 9vw;
+    font-weight: normal;
+    color: var(--brun-moerk);
+    text-shadow: 2px 2px 4px var(--skygge);
+    margin: 0;
+    text-align: center;
+  }
+  .ia-forklaring {
+    margin: 1vw 6vw 0;
+    font-style: italic;
+    text-align: center;
+    font-size: 3.6vw;
+    line-height: 1.5;
+  }
+  .ia-forklaring .ia-iggy { color: var(--iggy-groen); font-style: normal; }
+  .ia-forklaring .ia-alma { color: var(--alma-sort); font-style: normal; }
+
+  /* Midterblok: tromle + resultat — centreres lodret i resten af viewporten */
+  .ia-midte {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    gap: 3vw;
+    min-height: 0;
+  }
+
+  /* Tromle-ramme — kopieret fra spillets .boelle-tromle-* (fuld mobilbredde:
+     16:9-tromle i 9:21-viewporten → width 100vw, højden følger af aspect-ratio) */
+  .boelle-tromle-frame {
+    width: 100vw;
+    aspect-ratio: 16/9;
+    position: relative;
+    background: linear-gradient(135deg, #4a3624 0%, #2a1d10 50%, #4a3624 100%);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.55);
+  }
+  .boelle-tromle-stage {
+    position: absolute;
+    inset: 4%;
+    overflow: hidden;
+  }
+  .boelle-tromle-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    box-shadow:
+      inset 0 0 0 6px rgba(30,15,5,0.85),
+      inset 0 5px 16px rgba(0,0,0,0.6),
+      inset 0 -5px 16px rgba(0,0,0,0.6),
+      inset 5px 0 16px var(--skygge),
+      inset -5px 0 16px var(--skygge);
+  }
+
+  /* Resultat-linjen under tromlen — stor, med luft til begge sider */
+  #ia-resultat {
+    font-family: 'BleedingCowboys', 'OldNewspaperTypes', serif;
+    font-size: 11vw;
+    min-height: 1.3em;
+    line-height: 1.3;
+    text-shadow: 2px 2px 4px var(--skygge);
+    text-align: center;
+    padding: 0 8vw;
+  }
+  #ia-resultat.ia-iggy { color: var(--iggy-groen); }
+  #ia-resultat.ia-alma { color: var(--alma-sort); }
+  #ia-resultat.ia-ingen { color: var(--brun-moerk); }
+
+  /* Knap i bunden — spillets .kamp-udfør-btn-stil i touch-venlig størrelse */
+  .kamp-udfør-btn {
+    display: block;
+    width: 70vw;
+    max-width: 420px;
+    min-height: 56px;
+    padding: 0.5em 1em;
+    font-family: 'OldNewspaperTypes', monospace;
+    font-size: 6vw;
+    background-color: var(--brun);
+    color: #e8d8b0;
+    border: 2px solid var(--brun-moerk);
+    cursor: pointer;
+    border-radius: 5px;
+    letter-spacing: 0.05em;
+    touch-action: manipulation;
+  }
+  .kamp-udfør-btn:disabled {
+    background-color: #bbb;
+    border-color: #999;
+    color: #777;
+    cursor: default;
+  }
+  /* Hover kun på enheder der faktisk har hover — intet kræver det på touch */
+  @media (hover: hover) {
+    .kamp-udfør-btn:not(:disabled):hover {
+      background-color: #a65f2b;
+    }
+  }
+</style>
+</head>
+<body>
+  <h1>Iggy eller Alma?</h1>
+  <p class="ia-forklaring">Tromlen afgør det. Lander en <span class="ia-iggy">grøn</span> patron øverst, vinder Iggy — lander en <span class="ia-alma">sort</span>, vinder Alma. Lander den på et tomt kammer, vinder ingen.</p>
+  <div class="ia-midte">
+    <div id="ia-tromle-host"></div>
+    <div id="ia-resultat"></div>
+  </div>
+  <button id="ia-traek-btn" class="kamp-udfør-btn" onclick="iaTræk()">Træk!</button>
+  <!-- Indlejret spin-lyd (samme lyd som spillets sounds/revolver/spin.mp3) -->
+  <audio id="ia-spin-lyd" preload="auto" src="assets/spin.mp3"></audio>
+
+<script>
+// ─── Kopieret fra index.html: tromle-konstanter + easing (uændret) ───────────
+const BT_VB_FULL = [-440, -247, 880, 494];
+const BT_CHAMBER_CY = -135;
+const BT_CHAMBER_R = 58;
+const BT_Z_MARG = 25;
+const BT_Z_H = (BT_CHAMBER_R + BT_Z_MARG) * 2;
+const BT_Z_W = BT_Z_H * 16 / 9;
+const BT_VB_ZOOM = [-BT_Z_W / 2, BT_CHAMBER_CY - BT_CHAMBER_R - BT_Z_MARG, BT_Z_W, BT_Z_H];
+const BT_CHAMBER_ANGLES = [-90, -30, 30, 90, 150, -150];
+
+function btLerp(a, b, t) { return a.map((v, i) => v + (b[i] - v) * t); }
+function btEaseOut(t)    { return 1 - Math.pow(1 - t, 3); }
+function btEaseInOut(t)  { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
+
+// ─── Spin-lyd — som spillets spilSpinLyd, men afspiller det indlejrede
+//     <audio>-element i stedet for at oprette en ny Audio fra fil ────────────
+const masterVolumen = 1;
+let _senesteSpinLydTs = 0;
+function spilSpinLyd() {
+  const now = performance.now();
+  if (now - _senesteSpinLydTs < 100) return;
+  _senesteSpinLydTs = now;
+  try {
+    const a = document.getElementById('ia-spin-lyd');
+    if (!a) return;
+    a.currentTime = 0;
+    a.volume = 0.15 * masterVolumen;
+    a.play().catch(() => {});
+  } catch (_) { /* afspilning fejler tavst */ }
+}
+
+// ─── Patron-makers — grøn/sort efter roulettens rød/sort-mønster, men med
+//     "Virtual Relic Ammunition"-stempel + primer som de normale patroner.
+//     Tomt kammer er en kopi af spillets btMakeEmpty. ───────────────────────
+function iaMakeGrøn() {
+  return `<circle r="58" fill="#0a0604" stroke="#000" stroke-width="2"/>
+    <circle r="56" fill="url(#bt-bore-g-ia)"/>
+    <circle r="56" fill="url(#ia-groen-g)" stroke="#16280c" stroke-width="1"/>
+    <circle r="56" fill="none" stroke="rgba(0,0,0,0.45)" stroke-width="1.5" transform="translate(0 1.5)"/>
+    <text font-family="Rye,serif" font-size="12" fill="#101e08" letter-spacing="0.8">
+      <textPath href="#bt-stamp-p-ia" startOffset="0%">&#x2726; Virtual Relic Ammunition &#x2726;</textPath>
+    </text>
+    <circle r="18" fill="url(#ia-groen-primer-g)" stroke="#16280c" stroke-width="1"/>
+    <circle r="3" cx="0.5" cy="0.5" fill="#101e08" opacity="0.5"/>`;
+}
+
+function iaMakeSort() {
+  return `<circle r="58" fill="#0a0604" stroke="#000" stroke-width="2"/>
+    <circle r="56" fill="url(#bt-bore-g-ia)"/>
+    <circle r="56" fill="url(#ia-sort-g)" stroke="#0e0d0a" stroke-width="1"/>
+    <circle r="56" fill="none" stroke="rgba(0,0,0,0.45)" stroke-width="1.5" transform="translate(0 1.5)"/>
+    <text font-family="Rye,serif" font-size="12" fill="#76705e" letter-spacing="0.8">
+      <textPath href="#bt-stamp-p-ia" startOffset="0%">&#x2726; Virtual Relic Ammunition &#x2726;</textPath>
+    </text>
+    <circle r="18" fill="url(#ia-sort-primer-g)" stroke="#0e0c0a" stroke-width="1"/>
+    <circle r="3" cx="0.5" cy="0.5" fill="#060504" opacity="0.5"/>`;
+}
+
+function iaMakeTom() {
+  return `<circle r="58" fill="#0a0604" stroke="#000" stroke-width="2"/>
+    <circle r="56" fill="url(#bt-bore-g-ia)"/>
+    <g opacity="0.3" stroke="#3a2a18" stroke-width="0.8" fill="none">
+      <circle r="40"/><circle r="28"/><circle r="16"/>
+    </g>
+    <circle r="7" fill="#050302"/>`;
+}
+
+// Fælles opslag: arrangement-værdi → patron-/kammer-markup.
+function iaKammerHtml(slags) {
+  if (slags === 'grøn') return iaMakeGrøn();
+  if (slags === 'sort') return iaMakeSort();
+  return iaMakeTom();
+}
+
+// ─── SVG-generator — kopi af rouletteGenererSvg med grøn/sort-gradienter ─────
+function iaGenererSvg(arrangement) {
+  const chambersHtml = BT_CHAMBER_ANGLES.map((angle, i) =>
+    `<g transform="rotate(${angle}) translate(135 0)">${iaKammerHtml(arrangement[i])}</g>`
+  ).join('');
+  const vb = BT_VB_FULL.join(' ');
+  return `<div class="boelle-tromle-frame">
+    <div class="boelle-tromle-stage">
+      <svg id="ia-svg" style="width:100%;height:100%;display:block;"
+           viewBox="${vb}" xmlns="http://www.w3.org/2000/svg"
+           preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <radialGradient id="bt-bg-g-ia" cx="50%" cy="35%" r="70%">
+            <stop offset="0%" stop-color="#e8d8b0"/>
+            <stop offset="55%" stop-color="#d8c59a"/>
+            <stop offset="100%" stop-color="#c0a870"/>
+          </radialGradient>
+          <radialGradient id="bt-steel-g-ia" cx="50%" cy="50%" r="55%">
+            <stop offset="0%" stop-color="#c8c0b4"/>
+            <stop offset="45%" stop-color="#9a9288"/>
+            <stop offset="80%" stop-color="#6a6258"/>
+            <stop offset="100%" stop-color="#3e382e"/>
+          </radialGradient>
+          <radialGradient id="bt-bore-g-ia" cx="50%" cy="42%" r="55%">
+            <stop offset="0%" stop-color="#1a120a"/>
+            <stop offset="100%" stop-color="#000"/>
+          </radialGradient>
+          <radialGradient id="bt-hub-g-ia" cx="50%" cy="40%" r="55%">
+            <stop offset="0%" stop-color="#8a7a68"/>
+            <stop offset="50%" stop-color="#3a2e22"/>
+            <stop offset="100%" stop-color="#0e0a06"/>
+          </radialGradient>
+          <radialGradient id="ia-groen-g" cx="50%" cy="38%" r="58%">
+            <stop offset="0%" stop-color="#5a7c42"/>
+            <stop offset="45%" stop-color="#3a5c2a"/>
+            <stop offset="85%" stop-color="#1e3414"/>
+            <stop offset="100%" stop-color="#0c1606"/>
+          </radialGradient>
+          <radialGradient id="ia-groen-primer-g" cx="50%" cy="40%" r="55%">
+            <stop offset="0%" stop-color="#6a8c50"/>
+            <stop offset="100%" stop-color="#16280c"/>
+          </radialGradient>
+          <radialGradient id="ia-sort-g" cx="50%" cy="38%" r="58%">
+            <stop offset="0%" stop-color="#3a3830"/>
+            <stop offset="45%" stop-color="#1a1814"/>
+            <stop offset="85%" stop-color="#0e0d0a"/>
+            <stop offset="100%" stop-color="#060504"/>
+          </radialGradient>
+          <radialGradient id="ia-sort-primer-g" cx="50%" cy="40%" r="55%">
+            <stop offset="0%" stop-color="#484540"/>
+            <stop offset="100%" stop-color="#0e0c0a"/>
+          </radialGradient>
+          <path id="bt-stamp-p-ia" d="M 0 0 m -40 0 a 40 40 0 1 1 80 0 a 40 40 0 1 1 -80 0" fill="none"/>
+        </defs>
+        <rect x="-9999" y="-9999" width="19998" height="19998" fill="url(#bt-bg-g-ia)"/>
+        <g id="ia-spinner">
+          <circle cx="0" cy="0" r="232" fill="url(#bt-steel-g-ia)" stroke="#000" stroke-width="2"/>
+          <circle cx="0" cy="0" r="206" fill="#5a5248" stroke="#7a7268" stroke-width="1.5"/>
+          <g id="ia-chambers">${chambersHtml}</g>
+          <g>
+            <circle r="48" fill="#0a0604" stroke="#000" stroke-width="1.5"/>
+            <circle r="44" fill="url(#bt-hub-g-ia)"/>
+            <g fill="#5a4a38" stroke="#0a0604" stroke-width="1.2" stroke-linejoin="round">
+              <path d="M 0 -36 L 7 -10 L 0 -4 L -7 -10 Z" transform="rotate(0)"/>
+              <path d="M 0 -36 L 7 -10 L 0 -4 L -7 -10 Z" transform="rotate(60)"/>
+              <path d="M 0 -36 L 7 -10 L 0 -4 L -7 -10 Z" transform="rotate(120)"/>
+              <path d="M 0 -36 L 7 -10 L 0 -4 L -7 -10 Z" transform="rotate(180)"/>
+              <path d="M 0 -36 L 7 -10 L 0 -4 L -7 -10 Z" transform="rotate(240)"/>
+              <path d="M 0 -36 L 7 -10 L 0 -4 L -7 -10 Z" transform="rotate(300)"/>
+            </g>
+            <circle r="10" fill="#1a140e" stroke="#000" stroke-width="1"/>
+            <circle r="6" fill="url(#bt-hub-g-ia)"/>
+            <circle r="2" fill="#0a0604"/>
+          </g>
+        </g>
+      </svg>
+    </div>
+    <div class="boelle-tromle-overlay"></div>
+  </div>`;
+}
+
+// ─── Spin-animation — kopi af rouletteAnimerTromle, men med tre kammer-slags:
+//     lander på et tilfældigt kammer af den ønskede slags, 4 sek spin + zoom ─
+function iaAnimerTromle(targetSlags, onDone) {
+  spilSpinLyd();
+  const candidates = iaArrangement.reduce((acc, c, i) => { if (c === targetSlags) acc.push(i); return acc; }, []);
+  const targetSlot = candidates[Math.floor(Math.random() * candidates.length)];
+  const targetAngle = (((-90 - BT_CHAMBER_ANGLES[targetSlot]) % 360) + 360) % 360;
+  const currentRot = iaTromleRot;
+  const mod = ((currentRot % 360) + 360) % 360;
+  let toTarget = ((targetAngle - mod) % 360 + 360) % 360;
+  if (toTarget < 5) toTarget += 360;
+  const totalSpin = 3 * 360 + toTarget;
+  const startRot = currentRot;
+  let start = null;
+  function step(ts) {
+    const el = document.getElementById('ia-svg');
+    const sp = document.getElementById('ia-spinner');
+    if (!el || !sp) { onDone(startRot + totalSpin); return; }
+    if (!start) start = ts;
+    const t = Math.min((ts - start) / 4000, 1);
+    sp.setAttribute('transform', `rotate(${startRot + totalSpin * btEaseOut(t)})`);
+    el.setAttribute('viewBox', btLerp(BT_VB_FULL, BT_VB_ZOOM, btEaseInOut(t)).join(' '));
+    if (t < 1) { requestAnimationFrame(step); }
+    else { onDone(startRot + totalSpin); }
+  }
+  requestAnimationFrame(step);
+}
+
+// ─── Zoom ud — kopi af btZoomUd's viewBox-lerp (600 ms), uden re-render ──────
+function iaZoomUd(onDone) {
+  const svgEl = document.getElementById('ia-svg');
+  if (!svgEl) { onDone(); return; }
+  const from = BT_VB_ZOOM.slice();
+  let start = null;
+  function step(ts) {
+    const el = document.getElementById('ia-svg');
+    if (!el) { onDone(); return; }
+    if (!start) start = ts;
+    const t = Math.min((ts - start) / 600, 1);
+    el.setAttribute('viewBox', btLerp(from, BT_VB_FULL, btEaseInOut(t)).join(' '));
+    if (t < 1) { requestAnimationFrame(step); }
+    else { onDone(); }
+  }
+  requestAnimationFrame(step);
+}
+
+// ─── Picker-logik ────────────────────────────────────────────────────────────
+let iaTromleRot = 0;
+let iaAnimating = false;
+let iaZoomedInd = false;
+let iaArrangement = iaShuffle();
+
+// Fisher-Yates over 2 grønne + 2 sorte + 2 tomme (samme princip som roulettens shuffle).
+function iaShuffle() {
+  const arr = ['grøn', 'grøn', 'sort', 'sort', 'tom', 'tom'];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// Re-renderer kamrene med nyt arrangement — createElementNS som i
+// btRenderChambers (undgår SVG-innerHTML-quirken ved direkte innerHTML på g).
+function iaRenderChambers() {
+  const g = document.getElementById('ia-chambers');
+  if (!g) return;
+  g.innerHTML = '';
+  for (let i = 0; i < 6; i++) {
+    const el = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    el.setAttribute('transform', `rotate(${BT_CHAMBER_ANGLES[i]}) translate(135 0)`);
+    el.innerHTML = iaKammerHtml(iaArrangement[i]);
+    g.appendChild(el);
+  }
+}
+
+function iaVisResultat(udfald) {
+  const r = document.getElementById('ia-resultat');
+  if (udfald === 'grøn')      { r.className = 'ia-iggy';  r.textContent = 'IGGY VINDER'; }
+  else if (udfald === 'sort') { r.className = 'ia-alma';  r.textContent = 'ALMA VINDER'; }
+  else                        { r.className = 'ia-ingen'; r.textContent = 'INGEN VINDER'; }
+}
+
+function iaTræk() {
+  if (iaAnimating) return;
+  iaAnimating = true;
+  const btn = document.getElementById('ia-traek-btn');
+  btn.disabled = true;
+  const r = document.getElementById('ia-resultat');
+  r.className = '';
+  r.textContent = '';
+  // 1/3 hver (2 af hver kammer-slags i tromlen) — afgøres FØR animationen
+  const udfald = ['grøn', 'sort', 'tom'][Math.floor(Math.random() * 3)];
+  const startSpin = () => {
+    iaArrangement = iaShuffle();
+    iaRenderChambers();
+    iaAnimerTromle(udfald, (rot) => {
+      iaTromleRot = rot;
+      iaZoomedInd = true;
+      iaVisResultat(udfald);
+      iaAnimating = false;
+      btn.disabled = false;
+    });
+  };
+  if (iaZoomedInd) { iaZoomedInd = false; iaZoomUd(startSpin); }
+  else { startSpin(); }
+}
+
+document.getElementById('ia-tromle-host').innerHTML = iaGenererSvg(iaArrangement);
+</script>
+</body>
+</html>
