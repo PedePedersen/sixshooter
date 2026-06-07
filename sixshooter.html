@@ -37,14 +37,41 @@
     color: var(--graa-moerk);
     margin: 0;
     min-height: 100dvh;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ── To views (hovedside + opsætning) — vises/skjules med CSS ── */
+  .ss-side {
+    min-height: 100dvh;
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
     align-items: center;
-    box-sizing: border-box;
-    padding: 4vw 0 max(6vw, env(safe-area-inset-bottom));
     gap: 3.5vw;
-    -webkit-tap-highlight-color: transparent;
+    padding: 4vw 0 max(6vw, env(safe-area-inset-bottom));
   }
+  /* Hovedsiden centrerer tromle + knapper lodret — ren og luftig */
+  #ss-side-hoved { justify-content: center; gap: 6vw; }
+
+  /* Diskret hjørneknap (tandhjul på hovedsiden, × på opsætningssiden) */
+  .ss-hjoerne-btn {
+    position: fixed;
+    top: max(3vw, env(safe-area-inset-top));
+    right: 3vw;
+    width: 52px;
+    height: 52px;
+    padding: 8px;
+    background: rgba(245, 240, 220, 0.55);
+    border: 1px solid var(--messing);
+    border-radius: 50%;
+    cursor: pointer;
+    touch-action: manipulation;
+    opacity: 0.75;
+    z-index: 10;
+    box-shadow: 2px 3px 8px rgba(30, 15, 5, 0.25);
+  }
+  .ss-hjoerne-btn svg { width: 100%; height: 100%; display: block; }
   h1 {
     font-family: 'BleedingCowboys', 'OldNewspaperTypes', serif;
     font-size: clamp(2.4rem, 11vw, 4rem);
@@ -283,43 +310,67 @@
 </style>
 </head>
 <body>
-  <h1>Six Shooter</h1>
+  <!-- ── Hovedside: kun tromlen + spin/fortsæt-knapper (så ren som muligt).
+       Opsætningen tilgås via tandhjulet i hjørnet. ─────────────────────── -->
+  <div id="ss-side-hoved" class="ss-side">
+    <button class="ss-hjoerne-btn" onclick="ssVisOpsaetning(true)" aria-label="Opsætning" title="Spillere og hold">
+      <svg viewBox="0 0 48 48" aria-hidden="true">
+        <g fill="none" stroke="#4a2a00" stroke-width="3.2" stroke-linejoin="round">
+          <circle cx="24" cy="24" r="8"/>
+          <path stroke-linecap="round" d="M24 6v6 M24 36v6 M6 24h6 M36 24h6 M11.3 11.3l4.2 4.2 M32.5 32.5l4.2 4.2 M36.7 11.3l-4.2 4.2 M15.5 32.5l-4.2 4.2"/>
+        </g>
+      </svg>
+    </button>
 
-  <div id="ss-tromle-host"></div>
-  <div id="ss-resultat"></div>
+    <div id="ss-tromle-host"></div>
+    <div id="ss-resultat"></div>
 
-  <!-- Før første spin: stor Spin-knap. Efter et spin: to ikonknapper —
-       fyldt kammer + gentag-pil = spin igen med alle patroner (behold);
-       tomt kammer + gentag-pil = fjern vinderens patron og spin igen. -->
-  <button id="ss-spin-btn" class="kamp-udfør-btn" onclick="ssSpin(false)">Spin!</button>
-  <div id="ss-fortsaet" class="ss-skjult">
-    <button id="ss-behold-btn" class="ss-ikon-btn" onclick="ssSpin(false)"
-            aria-label="Spin igen med alle patroner" title="Spin igen — behold alle patroner"></button>
-    <button id="ss-fjern-btn" class="ss-ikon-btn" onclick="ssSpin(true)"
-            aria-label="Fjern vinderens patron og spin igen" title="Fjern vinderens patron og spin igen"></button>
+    <!-- Før første spin: stor Spin-knap. Efter et spin: to ikonknapper —
+         fyldt kammer + gentag-pil = spin igen med alle patroner (behold);
+         tomt kammer + gentag-pil = fjern vinderens patron og spin igen. -->
+    <button id="ss-spin-btn" class="kamp-udfør-btn" onclick="ssSpin(false)">Spin!</button>
+    <div id="ss-fortsaet" class="ss-skjult">
+      <button id="ss-behold-btn" class="ss-ikon-btn" onclick="ssSpin(false)"
+              aria-label="Spin igen med alle patroner" title="Spin igen — behold alle patroner"></button>
+      <button id="ss-fjern-btn" class="ss-ikon-btn" onclick="ssSpin(true)"
+              aria-label="Fjern vinderens patron og spin igen" title="Fjern vinderens patron og spin igen"></button>
+    </div>
+    <button id="ss-nulstil-btn" class="ss-knap-lille ss-skjult" onclick="ssNulstil()">Læg alle patroner i igen</button>
   </div>
-  <button id="ss-nulstil-btn" class="ss-knap-lille ss-skjult" onclick="ssNulstil()">Læg alle patroner i igen</button>
 
-  <section class="ss-panel">
-    <h2>Spillere</h2>
-    <div class="ss-raekke">
-      <input type="text" id="ss-navn-input" maxlength="18" placeholder="Navn" autocomplete="off">
-      <button class="ss-knap" id="ss-tilfoej-btn" onclick="ssTilfoejSpiller()">Tilføj</button>
-    </div>
-    <div class="ss-farver" id="ss-farver"></div>
-    <ul class="ss-spillerliste" id="ss-spillerliste"></ul>
-    <p class="ss-hint" id="ss-spiller-hint"></p>
-  </section>
+  <!-- ── Opsætningsside: spillere + hold. Vises/skjules med CSS. ───────── -->
+  <div id="ss-side-opsaetning" class="ss-side ss-skjult">
+    <button class="ss-hjoerne-btn" onclick="ssVisOpsaetning(false)" aria-label="Tilbage til tromlen" title="Tilbage til tromlen">
+      <svg viewBox="0 0 48 48" aria-hidden="true">
+        <path d="M14 14 L34 34 M34 14 L14 34" fill="none" stroke="#4a2a00" stroke-width="4" stroke-linecap="round"/>
+      </svg>
+    </button>
 
-  <section class="ss-panel">
-    <h2>Hold</h2>
-    <div class="ss-raekke">
-      <input type="text" id="ss-hold-input" maxlength="24" placeholder="Holdnavn" autocomplete="off">
-      <button class="ss-knap" onclick="ssGemHold()">Gem hold</button>
-    </div>
-    <ul class="ss-holdliste" id="ss-holdliste"></ul>
-    <p class="ss-hint">Gem de aktuelle spillere som et hold. Indlæs et hold for at redigere det, og gem under samme navn for at overskrive.</p>
-  </section>
+    <h1>Six Shooter</h1>
+
+    <section class="ss-panel">
+      <h2>Spillere</h2>
+      <div class="ss-raekke">
+        <input type="text" id="ss-navn-input" maxlength="18" placeholder="Navn" autocomplete="off">
+        <button class="ss-knap" id="ss-tilfoej-btn" onclick="ssTilfoejSpiller()">Tilføj</button>
+      </div>
+      <div class="ss-farver" id="ss-farver"></div>
+      <ul class="ss-spillerliste" id="ss-spillerliste"></ul>
+      <p class="ss-hint" id="ss-spiller-hint"></p>
+    </section>
+
+    <section class="ss-panel">
+      <h2>Hold</h2>
+      <div class="ss-raekke">
+        <input type="text" id="ss-hold-input" maxlength="24" placeholder="Holdnavn" autocomplete="off">
+        <button class="ss-knap" onclick="ssGemHold()">Gem hold</button>
+      </div>
+      <ul class="ss-holdliste" id="ss-holdliste"></ul>
+      <p class="ss-hint">Gem de aktuelle spillere som et hold. Indlæs et hold for at redigere det, og gem under samme navn for at overskrive.</p>
+    </section>
+
+    <button class="kamp-udfør-btn" onclick="ssVisOpsaetning(false)">Tilbage til tromlen</button>
+  </div>
 
   <!-- Lyde: spin under tromlerullet; bang ved landing på patron; klik ved tomt kammer -->
   <audio id="ss-spin-lyd" preload="auto" src="assets/spin.mp3"></audio>
@@ -383,8 +434,29 @@ let ssValgtFarve = null;
 let ssArrangement = new Array(6).fill(null);   // slot → spiller-index eller null
 let ssTromleRot = 0;
 let ssAnimating = false;
-let ssZoomedInd = false;
 let ssSidsteVinder = null;                      // spiller-index fra seneste spin (null = tomt kammer)
+
+// ── Kamera-model ──
+// Alle viewBox-animationer (spin-zoom-ind og zoom-ud) starter fra den AKTUELLE
+// viewBox og guarded af en generations-tæller: når en ny animation starter,
+// dør den gamle tavst, og den nye fortsætter fra hvor kameraet faktisk står.
+// Dermed er zoom-ud ALDRIG abrupt — uanset om den trigges af 3-sekunders-
+// timeren, eller brugeren afbryder den midt i med et nyt spin.
+let _ssKameraGen = 0;
+let ssAutoZoomTimer = null;
+
+function ssAktuelVb() {
+  const el = document.getElementById('ss-svg');
+  if (!el) return BT_VB_FULL.slice();
+  return el.getAttribute('viewBox').split(' ').map(parseFloat);
+}
+function ssVbErFuld() {
+  const vb = ssAktuelVb();
+  return BT_VB_FULL.every((v, i) => Math.abs(vb[i] - v) < 0.5);
+}
+function ssAnnullerAutoZoom() {
+  if (ssAutoZoomTimer) { clearTimeout(ssAutoZoomTimer); ssAutoZoomTimer = null; }
+}
 
 function ssGemAktuelle() {
   try { localStorage.setItem('sixshooter-spillere', JSON.stringify(ssSpillere.map(p => ({ navn: p.navn, farve: p.farve })))); } catch (_) {}
@@ -514,9 +586,13 @@ function ssRenderTromle() {
   document.getElementById('ss-tromle-host').innerHTML = ssGenererSvg(ssTromleRot);
 }
 
-// ─── Spin-animation (fra rouletteAnimerTromle) — lander på et bestemt slot ──
+// ─── Spin-animation (fra rouletteAnimerTromle) — lander på et bestemt slot.
+//     Zoom-ind lerpes fra den AKTUELLE viewBox, så et spin der starter mens
+//     kameraet er midt i en zoom-ud, fortsætter glidende uden hop. ──────────
 function ssAnimerTromle(targetSlot, onDone) {
   spilSpinLyd();
+  const gen = ++_ssKameraGen;   // overtag kameraet — evt. kørende zoom-ud dør tavst
+  const vbFrom = ssAktuelVb();
   const targetAngle = (((-90 - BT_CHAMBER_ANGLES[targetSlot]) % 360) + 360) % 360;
   const currentRot = ssTromleRot;
   const mod = ((currentRot % 360) + 360) % 360;
@@ -532,27 +608,33 @@ function ssAnimerTromle(targetSlot, onDone) {
     if (!start) start = ts;
     const t = Math.min((ts - start) / 4000, 1);
     sp.setAttribute('transform', `rotate(${startRot + totalSpin * btEaseOut(t)})`);
-    el.setAttribute('viewBox', btLerp(BT_VB_FULL, BT_VB_ZOOM, btEaseInOut(t)).join(' '));
+    if (gen === _ssKameraGen) {
+      el.setAttribute('viewBox', btLerp(vbFrom, BT_VB_ZOOM, btEaseInOut(t)).join(' '));
+    }
     if (t < 1) { requestAnimationFrame(step); }
     else { onDone(startRot + totalSpin); }
   }
   requestAnimationFrame(step);
 }
 
-// ─── Zoom ud (fra btZoomUd) — viewBox-lerp 600 ms ───────────────────────────
+// ─── Zoom ud (fra btZoomUd) — viewBox-lerp 600 ms fra AKTUEL viewBox.
+//     Generations-guard: starter et spin (eller en ny zoom) imens, stopper
+//     loopet tavst og den nye animation tager glidende over. ────────────────
 function ssZoomUd(onDone) {
   const svgEl = document.getElementById('ss-svg');
-  if (!svgEl) { onDone(); return; }
-  const from = BT_VB_ZOOM.slice();
+  if (!svgEl) { if (onDone) onDone(); return; }
+  const gen = ++_ssKameraGen;
+  const from = ssAktuelVb();
   let start = null;
   function step(ts) {
     const el = document.getElementById('ss-svg');
-    if (!el) { onDone(); return; }
+    if (!el) { if (onDone) onDone(); return; }
+    if (gen !== _ssKameraGen) return;   // overtaget af nyere animation
     if (!start) start = ts;
     const t = Math.min((ts - start) / 600, 1);
     el.setAttribute('viewBox', btLerp(from, BT_VB_FULL, btEaseInOut(t)).join(' '));
     if (t < 1) { requestAnimationFrame(step); }
-    else { onDone(); }
+    else { if (onDone) onDone(); }
   }
   requestAnimationFrame(step);
 }
@@ -574,6 +656,7 @@ function ssShuffleArrangement() {
 
 function ssSpin(fjernVinder) {
   if (ssAnimating) return;
+  ssAnnullerAutoZoom();   // bruger afbrød 3-sekunders-timeren med et nyt spin
   if (fjernVinder && ssSidsteVinder !== null) {
     ssSpillere[ssSidsteVinder].aktiv = false;
   }
@@ -588,12 +671,16 @@ function ssSpin(fjernVinder) {
   r.textContent = '';
   r.style.color = '';
   const startSpin = () => {
+    // Bevar kamera-positionen hen over re-renderingen af tromlen (nyt
+    // arrangement) — ellers hopper viewBox'en abrupt til fuld visning.
+    const vbFoer = ssAktuelVb();
     ssShuffleArrangement();
     ssRenderTromle();
+    const svgEl = document.getElementById('ss-svg');
+    if (svgEl) svgEl.setAttribute('viewBox', vbFoer.join(' '));
     const targetSlot = Math.floor(Math.random() * 6);
     ssAnimerTromle(targetSlot, (rot) => {
       ssTromleRot = rot;
-      ssZoomedInd = true;
       ssAnimating = false;
       const vinder = ssArrangement[targetSlot];
       ssSidsteVinder = vinder;
@@ -607,13 +694,29 @@ function ssSpin(fjernVinder) {
         r.textContent = 'KLIK — TOMT KAMMER';
       }
       ssVisFortsaet();
+      // Automatisk smooth zoom-ud efter 3 sekunder — medmindre brugeren
+      // når at trykke behold/fjern først (så annulleres timeren og zoom-ud
+      // sker i stedet som glidende del af overgangen til næste spin).
+      ssAutoZoomTimer = setTimeout(() => {
+        ssAutoZoomTimer = null;
+        ssZoomUd(null);
+      }, 3000);
     });
   };
-  if (ssZoomedInd) { ssZoomedInd = false; ssZoomUd(startSpin); }
+  // Står kameraet ikke i fuld visning (zoomet ind, eller midt i auto-zoom-ud),
+  // køres en glidende zoom-ud fra den aktuelle position før næste spin.
+  if (!ssVbErFuld()) { ssZoomUd(startSpin); }
   else { startSpin(); }
 }
 
 function ssAktiveAntal() { return ssSpillere.filter(p => p.aktiv).length; }
+
+// ─── View-skift: hovedside ↔ opsætningsside (ren CSS-vis/skjul) ─────────────
+function ssVisOpsaetning(vis) {
+  document.getElementById('ss-side-hoved').classList.toggle('ss-skjult', vis);
+  document.getElementById('ss-side-opsaetning').classList.toggle('ss-skjult', !vis);
+  window.scrollTo(0, 0);
+}
 
 // Efter et spin: skift fra Spin-knappen til de to ikonknapper.
 function ssVisFortsaet() {
@@ -625,9 +728,10 @@ function ssVisFortsaet() {
 
 // Tilbage til udgangspunktet (stor Spin-knap, alle patroner i tromlen).
 function ssNulstil() {
+  ssAnnullerAutoZoom();
+  _ssKameraGen++;          // dræb evt. kørende zoom-animation før re-render
   ssSpillere.forEach(p => { p.aktiv = true; });
   ssSidsteVinder = null;
-  ssZoomedInd = false;
   ssTromleRot = 0;
   document.getElementById('ss-spin-btn').classList.remove('ss-skjult');
   document.getElementById('ss-fortsaet').classList.add('ss-skjult');
@@ -738,9 +842,10 @@ function ssFjernSpiller(idx) {
 
 // Roster ændret → alle patroner i tromlen igen og tilbage til Spin-knappen.
 function ssEfterRosterAendring() {
+  ssAnnullerAutoZoom();
+  _ssKameraGen++;          // dræb evt. kørende zoom-animation før re-render
   ssSpillere.forEach(p => { p.aktiv = true; });
   ssSidsteVinder = null;
-  ssZoomedInd = false;
   document.getElementById('ss-spin-btn').classList.remove('ss-skjult');
   document.getElementById('ss-fortsaet').classList.add('ss-skjult');
   const r = document.getElementById('ss-resultat');
