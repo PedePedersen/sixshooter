@@ -65,7 +65,8 @@ and keep their respective origins/licenses:
 
 | Asset | Origin |
 |---|---|
-| `assets/BleedingCowboys.ttf` | Bleeding Cowboys font — headlines & results |
+| `assets/Rye-Regular.ttf` | Rye (Google Fonts, OFL) — headlines, results & cartridge stamp |
+| `assets/BleedingCowboys.ttf` | Bleeding Cowboys font — retained in `assets/` but currently unused |
 | `assets/OldNewspaperTypes.ttf` | Old Newspaper Types font — body text |
 | `assets/paper.webp` | Gallows Creek parchment background |
 | `assets/spin.mp3` | Gallows Creek revolver-spin sound |
