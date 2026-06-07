@@ -522,15 +522,26 @@ function ssAnnullerAutoZoom() {
   if (ssAutoZoomTimer) { clearTimeout(ssAutoZoomTimer); ssAutoZoomTimer = null; }
 }
 
+// Seneste tilstand gendannes ved genåbning: spillerne INKL. deres aktiv-flag
+// (fjernede patroner forbliver fjernet) og navnet på det sidst indlæste hold.
 function ssGemAktuelle() {
-  try { localStorage.setItem('sixshooter-spillere', JSON.stringify(ssSpillere.map(p => ({ navn: p.navn, farve: p.farve })))); } catch (_) {}
+  try { localStorage.setItem('sixshooter-spillere', JSON.stringify(ssSpillere.map(p => ({ navn: p.navn, farve: p.farve, aktiv: p.aktiv })))); } catch (_) {}
 }
 function ssHentAktuelle() {
   try {
     const raw = localStorage.getItem('sixshooter-spillere');
-    if (raw) return JSON.parse(raw).slice(0, SS_MAX_SPILLERE).map(p => ({ navn: p.navn, farve: p.farve, aktiv: true }));
+    if (raw) return JSON.parse(raw).slice(0, SS_MAX_SPILLERE).map(p => ({ navn: p.navn, farve: p.farve, aktiv: p.aktiv !== false }));
   } catch (_) {}
   return null;
+}
+function ssGemSidsteHold(navn) {
+  try {
+    if (navn) localStorage.setItem('sixshooter-sidste-hold', navn);
+    else localStorage.removeItem('sixshooter-sidste-hold');
+  } catch (_) {}
+}
+function ssHentSidsteHold() {
+  try { return localStorage.getItem('sixshooter-sidste-hold'); } catch (_) { return null; }
 }
 function ssHentHold() {
   try { return JSON.parse(localStorage.getItem('sixshooter-hold') || '{}'); } catch (_) { return {}; }
@@ -728,6 +739,7 @@ function ssSpin(fjernVinder) {
   ssAnnullerAutoZoom();   // bruger afbrød 3-sekunders-timeren med et nyt spin
   if (fjernVinder && ssSidsteVinder !== null) {
     ssSpillere[ssSidsteVinder].aktiv = false;
+    ssGemAktuelle();      // aktiv-tilstanden gendannes ved genåbning
   }
   if (ssAktiveAntal() === 0) { ssOpdaterKnapper(); return; }
   ssAnimating = true;
@@ -800,6 +812,7 @@ function ssNulstil() {
   ssAnnullerAutoZoom();
   _ssKameraGen++;          // dræb evt. kørende zoom-animation før re-render
   ssSpillere.forEach(p => { p.aktiv = true; });
+  ssGemAktuelle();         // aktiv-tilstanden gendannes ved genåbning
   ssSidsteVinder = null;
   ssTromleRot = 0;
   document.getElementById('ss-spin-btn').classList.remove('ss-skjult');
@@ -897,21 +910,22 @@ function ssTilfoejSpiller() {
   if (!navn || ssSpillere.length >= SS_MAX_SPILLERE || !ssValgtFarve) return;
   ssSpillere.push({ navn, farve: ssValgtFarve, aktiv: true });
   input.value = '';
-  ssGemAktuelle();
   ssEfterRosterAendring();
 }
 
 function ssFjernSpiller(idx) {
   ssSpillere.splice(idx, 1);
-  ssGemAktuelle();
   ssEfterRosterAendring();
 }
 
 // Roster ændret → alle patroner i tromlen igen og tilbage til Spin-knappen.
-function ssEfterRosterAendring() {
+// nulstilAktiv=false bruges ved opstart, hvor de GENDANNEDE aktiv-flags fra
+// localStorage skal bevares i stedet for at blive nulstillet.
+function ssEfterRosterAendring(nulstilAktiv = true) {
   ssAnnullerAutoZoom();
   _ssKameraGen++;          // dræb evt. kørende zoom-animation før re-render
-  ssSpillere.forEach(p => { p.aktiv = true; });
+  if (nulstilAktiv) ssSpillere.forEach(p => { p.aktiv = true; });
+  ssGemAktuelle();
   ssSidsteVinder = null;
   document.getElementById('ss-spin-btn').classList.remove('ss-skjult');
   document.getElementById('ss-fortsaet').classList.add('ss-skjult');
@@ -952,7 +966,7 @@ function ssIndlaesHold(navn) {
   if (!hold[navn]) return;
   ssSpillere = hold[navn].slice(0, SS_MAX_SPILLERE).map(p => ({ navn: p.navn, farve: p.farve, aktiv: true }));
   document.getElementById('ss-hold-input').value = navn;   // klar til redigér-og-gem
-  ssGemAktuelle();
+  ssGemSidsteHold(navn);   // gendannes ved genåbning
   ssEfterRosterAendring();
 }
 
@@ -960,6 +974,12 @@ function ssSletHold(navn) {
   const hold = ssHentHold();
   delete hold[navn];
   ssSkrivHold(hold);
+  // Var det slettede hold det sidst indlæste, ryddes referencen (og inputtet).
+  if (ssHentSidsteHold() === navn) {
+    ssGemSidsteHold(null);
+    const input = document.getElementById('ss-hold-input');
+    if (input.value === navn) input.value = '';
+  }
   ssRenderHoldliste();
 }
 
@@ -977,19 +997,44 @@ function ssRenderHoldliste() {
 }
 
 // ─── Init ────────────────────────────────────────────────────────────────────
+// Default-state ved første opstart (tom localStorage): trioen fra "The Good,
+// the Bad and the Ugly" som spillere OG som gemt hold.
+const SS_DEFAULT_HOLD_NAVN = 'The Good, the Bad & the Ugly';
+const SS_DEFAULT_TRIO = [
+  { navn: 'Blondie',  farve: '#c8a830' },   // the Good — guld (Blondie)
+  { navn: 'Tuco',     farve: '#8a2810' },   // the Ugly — rust
+  { navn: 'Sentanza', farve: '#1a1814' },   // the Bad — sort
+];
+
+function ssInit() {
+  let spillere = ssHentAktuelle();
+  if (spillere === null) {
+    // Ingen gemte spillere: forudindlæs trioen. Er holdlisten OGSÅ tom
+    // (helt frisk localStorage), gemmes trioen desuden som hold, og holdet
+    // markeres som det aktive.
+    spillere = SS_DEFAULT_TRIO.map(p => ({ navn: p.navn, farve: p.farve, aktiv: true }));
+    if (Object.keys(ssHentHold()).length === 0) {
+      ssSkrivHold({ [SS_DEFAULT_HOLD_NAVN]: SS_DEFAULT_TRIO.map(p => ({ navn: p.navn, farve: p.farve })) });
+      ssGemSidsteHold(SS_DEFAULT_HOLD_NAVN);
+    }
+  }
+  ssSpillere = spillere;
+  // Gendan det sidst indlæste hold (vises i holdnavn-feltet, klar til
+  // redigér-og-gem) — kun hvis holdet stadig findes.
+  const sidste = ssHentSidsteHold();
+  if (sidste && ssHentHold()[sidste]) {
+    document.getElementById('ss-hold-input').value = sidste;
+  }
+  ssRenderHoldliste();
+  ssEfterRosterAendring(false);   // bevar gendannede aktiv-flags
+}
+
 document.getElementById('ss-behold-btn').innerHTML = ssIkonSvg(true);
 document.getElementById('ss-fjern-btn').innerHTML = ssIkonSvg(false);
 document.getElementById('ss-navn-input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') ssTilfoejSpiller();
 });
-// Startbesætning: gemte spillere fra sidst, ellers Iggy & Alma (arven fra
-// iggy-alma-picker — grøn og sort patron).
-ssSpillere = ssHentAktuelle() || [
-  { navn: 'Iggy', farve: '#3a5c2a', aktiv: true },
-  { navn: 'Alma', farve: '#1a1814', aktiv: true },
-];
-ssRenderHoldliste();
-ssEfterRosterAendring();
+ssInit();
 </script>
 </body>
 </html>
