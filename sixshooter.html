@@ -464,7 +464,10 @@ function ssNuance(hex, f) {
 // ─── Spiller- og holddata ────────────────────────────────────────────────────
 // ssSpillere: [{navn, farve, aktiv}] — aktiv=false når patronen er fjernet.
 // Hold gemmes i localStorage under 'sixshooter-hold' som {navn: [{navn,farve}]}.
-const SS_FARVER = ['#3a5c2a', '#1a1814', '#8a2810', '#8b6914', '#2a4a6b', '#7b4c20', '#5e2a52', '#556055'];
+// 8 støvede western-farver + 4 metaller: sølv, guld, jern (mørk blågrå metal)
+// og messing (#c89858 = midterstoppet i tromle-patronernes egen brass-gradient).
+const SS_FARVER = ['#3a5c2a', '#1a1814', '#8a2810', '#8b6914', '#2a4a6b', '#7b4c20', '#5e2a52', '#556055',
+                   '#9ca6aa', '#c8a830', '#3e4a52', '#c89858'];
 const SS_MAX_SPILLERE = 6;
 let ssSpillere = [];
 let ssValgtFarve = null;
@@ -510,6 +513,11 @@ function ssHentHold() {
 }
 function ssSkrivHold(hold) {
   try { localStorage.setItem('sixshooter-hold', JSON.stringify(hold)); } catch (_) {}
+}
+
+// Title case: stort forbogstav, resten små — pr. ord (fx "billy the kid" → "Billy The Kid").
+function ssTitleCase(s) {
+  return String(s).split(/\s+/).map(w => w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w).join(' ');
 }
 
 function esc(s) {
@@ -723,12 +731,12 @@ function ssSpin(fjernVinder) {
       ssSidsteVinder = vinder;
       if (vinder !== null) {
         spilLyd('ss-bang-lyd', 0.5);
-        r.textContent = `${ssSpillere[vinder].navn.toUpperCase()}!`;
+        r.textContent = `${ssTitleCase(ssSpillere[vinder].navn)}!`;
         r.style.color = ssNuance(ssSpillere[vinder].farve, -0.15);
       } else {
         spilLyd('ss-klik-lyd', 0.6);
         r.className = 'ss-klik';
-        r.textContent = 'CLICK — EMPTY CHAMBER';
+        r.textContent = 'Empty Chamber';
       }
       ssVisFortsaet();
       // Automatisk smooth zoom-ud efter 3 sekunder — medmindre brugeren
