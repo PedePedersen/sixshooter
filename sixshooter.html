@@ -3,28 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Iggy eller Alma?</title>
+<title>Six Shooter</title>
 <!--
-  Lokalt legeværktøj — IKKE en del af spillet, deployes ikke.
-  Six Shooter — udgangspunkt: kopi af Gallows Creek-legeværktøjet
-  iggy-alma-picker.html (Iggy/Alma-tromlen). Assets ligger som filer i
-  assets/ (fonte, pergament-baggrund, spin.mp3 + bang.wav/klik.wav).
-
-  Genbruger Gallows Creeks tromle-animation (btAnimerTromle-flowet),
-  spin.mp3, pergament-tekstur og fonte. Tromlen har 2 grønne + 2 sorte
-  patroner + 2 tomme kamre: grøn øverst = Iggy vinder, sort øverst =
-  Alma vinder, tomt kammer øverst = ingen vinder. Udfaldet bestemmes på
-  forhånd (1/3 hver), og animationen lander på et kammer af den rigtige
-  slags. Layout er optimeret til høj/smal mobilskærm (9:21).
+  Six Shooter — selvstændig HTML-app (åbn direkte i browseren).
+  Bygget videre på Gallows Creek-legeværktøjet iggy-alma-picker.html:
+  tromle-animationen (spin + zoom på øverste kammer), spin-lyden og
+  pergament-stilen er bevaret. Ovenpå: spillere med navn/farve (1 patron
+  pr. spiller, maks 6), hold gemt i localStorage, bang-/klik-lyd ved
+  landing og behold-/fjern-ikonknapper efter hvert spin.
 -->
 <style>
   :root {
     --brun:            #7b4c20;
     --brun-moerk:      #4a2a00;
     --graa-moerk:      #2b2b2b;
+    --messing:         #8b6914;
     --skygge:          rgba(0,0,0,0.5);
-    --iggy-groen:      #3a5c2a;
-    --alma-sort:       #1a1814;
   }
   @font-face {
     font-family: 'OldNewspaperTypes';
@@ -34,61 +28,53 @@
     font-family: 'BleedingCowboys';
     src: url('assets/BleedingCowboys.ttf') format('truetype');
   }
-  html, body { height: 100%; margin: 0; }
+  html { height: 100%; }
   body {
     background-image: url('assets/paper.webp');
     background-repeat: repeat;
     background-size: auto;
     font-family: 'OldNewspaperTypes', monospace;
     color: var(--graa-moerk);
-    height: 100dvh;
-    overflow: hidden;
+    margin: 0;
+    min-height: 100dvh;
     display: flex;
     flex-direction: column;
     align-items: center;
     box-sizing: border-box;
-    padding: 3vw 0 max(3vw, env(safe-area-inset-bottom));
+    padding: 4vw 0 max(6vw, env(safe-area-inset-bottom));
+    gap: 3.5vw;
     -webkit-tap-highlight-color: transparent;
   }
   h1 {
     font-family: 'BleedingCowboys', 'OldNewspaperTypes', serif;
-    font-size: 9vw;
+    font-size: clamp(2.4rem, 11vw, 4rem);
     font-weight: normal;
     color: var(--brun-moerk);
     text-shadow: 2px 2px 4px var(--skygge);
     margin: 0;
     text-align: center;
   }
-  .ia-forklaring {
-    margin: 1vw 6vw 0;
-    font-style: italic;
-    text-align: center;
-    font-size: 3.6vw;
-    line-height: 1.5;
-  }
-  .ia-forklaring .ia-iggy { color: var(--iggy-groen); font-style: normal; }
-  .ia-forklaring .ia-alma { color: var(--alma-sort); font-style: normal; }
-
-  /* Midterblok: tromle + resultat — centreres lodret i resten af viewporten */
-  .ia-midte {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    gap: 3vw;
-    min-height: 0;
+  h2 {
+    font-family: 'BleedingCowboys', 'OldNewspaperTypes', serif;
+    font-size: clamp(1.3rem, 6vw, 1.9rem);
+    font-weight: normal;
+    color: var(--brun-moerk);
+    margin: 0 0 0.5em;
   }
 
-  /* Tromle-ramme — kopieret fra spillets .boelle-tromle-* (fuld mobilbredde:
-     16:9-tromle i 9:21-viewporten → width 100vw, højden følger af aspect-ratio) */
+  /* Tromle-ramme — fra spillets .boelle-tromle-*: 80% af skærmbredden og
+     med kastet skygge ned + til højre, som et fysisk objekt på pergamentet.
+     Skyggefarven følger rammens mørke træ-/jerntone. */
   .boelle-tromle-frame {
-    width: 100vw;
+    width: 80vw;
+    max-width: 640px;
     aspect-ratio: 16/9;
     position: relative;
     background: linear-gradient(135deg, #4a3624 0%, #2a1d10 50%, #4a3624 100%);
-    box-shadow: 0 4px 14px rgba(0,0,0,0.55);
+    box-shadow:
+      14px 18px 30px rgba(30, 15, 5, 0.45),
+      6px 8px 12px rgba(30, 15, 5, 0.35);
+    border-radius: 3px;
   }
   .boelle-tromle-stage {
     position: absolute;
@@ -108,29 +94,31 @@
       inset -5px 0 16px var(--skygge);
   }
 
-  /* Resultat-linjen under tromlen — stor, med luft til begge sider */
-  #ia-resultat {
+  /* Resultat-linjen under tromlen */
+  #ss-resultat {
     font-family: 'BleedingCowboys', 'OldNewspaperTypes', serif;
-    font-size: 11vw;
+    font-size: clamp(2rem, 10vw, 3.4rem);
     min-height: 1.3em;
     line-height: 1.3;
     text-shadow: 2px 2px 4px var(--skygge);
     text-align: center;
-    padding: 0 8vw;
+    padding: 0 6vw;
+    overflow-wrap: anywhere;
   }
-  #ia-resultat.ia-iggy { color: var(--iggy-groen); }
-  #ia-resultat.ia-alma { color: var(--alma-sort); }
-  #ia-resultat.ia-ingen { color: var(--brun-moerk); }
+  #ss-resultat.ss-klik {
+    color: var(--brun-moerk);
+    font-size: clamp(1.4rem, 7vw, 2.4rem);
+  }
 
-  /* Knap i bunden — spillets .kamp-udfør-btn-stil i touch-venlig størrelse */
+  /* Spin-knap — spillets .kamp-udfør-btn-stil, touch-venlig */
   .kamp-udfør-btn {
     display: block;
-    width: 70vw;
+    min-width: 60vw;
     max-width: 420px;
     min-height: 56px;
     padding: 0.5em 1em;
     font-family: 'OldNewspaperTypes', monospace;
-    font-size: 6vw;
+    font-size: clamp(1.2rem, 6vw, 1.6rem);
     background-color: var(--brun);
     color: #e8d8b0;
     border: 2px solid var(--brun-moerk);
@@ -145,27 +133,201 @@
     color: #777;
     cursor: default;
   }
-  /* Hover kun på enheder der faktisk har hover — intet kræver det på touch */
   @media (hover: hover) {
-    .kamp-udfør-btn:not(:disabled):hover {
-      background-color: #a65f2b;
-    }
+    .kamp-udfør-btn:not(:disabled):hover { background-color: #a65f2b; }
+  }
+
+  /* Fortsæt-ikonknapper (efter spin): kammer-nærbillede + cirkulær gentag-pil */
+  #ss-fortsaet {
+    display: flex;
+    gap: 8vw;
+    align-items: center;
+  }
+  .ss-ikon-btn {
+    width: clamp(64px, 20vw, 88px);
+    height: clamp(64px, 20vw, 88px);
+    padding: 6px;
+    background: rgba(245, 240, 220, 0.6);
+    border: 2px solid var(--brun-moerk);
+    border-radius: 14px;
+    cursor: pointer;
+    touch-action: manipulation;
+    box-shadow: 4px 6px 10px rgba(30, 15, 5, 0.3);
+  }
+  .ss-ikon-btn svg { width: 100%; height: 100%; display: block; }
+  .ss-ikon-btn:disabled { opacity: 0.35; cursor: default; box-shadow: none; }
+  .ss-skjult { display: none !important; }
+
+  /* Paneler (spillere + hold) */
+  .ss-panel {
+    width: min(92vw, 560px);
+    box-sizing: border-box;
+    border: 2px solid var(--messing);
+    background: rgba(245, 240, 220, 0.55);
+    border-radius: 6px;
+    padding: 4vw 4vw 5vw;
+    box-shadow: 4px 6px 14px rgba(30, 15, 5, 0.25);
+  }
+  .ss-raekke {
+    display: flex;
+    gap: 2vw;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  input[type="text"] {
+    font-family: 'OldNewspaperTypes', monospace;
+    font-size: 1.05rem;
+    color: var(--graa-moerk);
+    background: rgba(255, 252, 240, 0.8);
+    border: 1px solid var(--messing);
+    border-radius: 4px;
+    padding: 0.55em 0.7em;
+    min-height: 44px;
+    box-sizing: border-box;
+    flex: 1;
+    min-width: 9em;
+  }
+  .ss-knap {
+    font-family: 'OldNewspaperTypes', monospace;
+    font-size: 1rem;
+    background-color: var(--brun);
+    color: #e8d8b0;
+    border: 2px solid var(--brun-moerk);
+    border-radius: 5px;
+    padding: 0.45em 1.1em;
+    min-height: 44px;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .ss-knap:disabled { background: #bbb; border-color: #999; color: #777; cursor: default; }
+  .ss-knap-lille {
+    font-family: 'OldNewspaperTypes', monospace;
+    font-size: 0.95rem;
+    background: transparent;
+    color: var(--brun);
+    border: 1px solid var(--messing);
+    border-radius: 4px;
+    padding: 0.35em 0.8em;
+    min-height: 44px;
+    min-width: 44px;
+    cursor: pointer;
+    touch-action: manipulation;
+    font-style: italic;
+  }
+  .ss-knap-lille:disabled { opacity: 0.4; cursor: default; }
+
+  /* Farve-swatches */
+  .ss-farver {
+    display: flex;
+    gap: 2.5vw;
+    flex-wrap: wrap;
+    margin: 0.7em 0;
+  }
+  .ss-farve {
+    width: clamp(40px, 11vw, 48px);
+    height: clamp(40px, 11vw, 48px);
+    border-radius: 50%;
+    border: 3px solid rgba(0, 0, 0, 0.25);
+    cursor: pointer;
+    padding: 0;
+    touch-action: manipulation;
+    box-shadow: inset -3px -4px 6px rgba(0,0,0,0.35), 2px 3px 5px rgba(30,15,5,0.3);
+  }
+  .ss-farve.ss-valgt {
+    border-color: var(--brun-moerk);
+    outline: 3px solid #f5d060;
+    outline-offset: 1px;
+  }
+  .ss-farve:disabled { opacity: 0.25; cursor: default; }
+
+  /* Spillerliste */
+  .ss-spillerliste { list-style: none; margin: 0.8em 0 0; padding: 0; }
+  .ss-spillerliste li {
+    display: flex;
+    align-items: center;
+    gap: 0.7em;
+    padding: 0.25em 0;
+    font-size: 1.1rem;
+    min-height: 44px;
+  }
+  .ss-spillerliste li.ss-ude { opacity: 0.45; }
+  .ss-spillerliste li.ss-ude .ss-spiller-navn { text-decoration: line-through; }
+  .ss-patron-dot {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    border: 2px solid rgba(0, 0, 0, 0.4);
+    box-shadow: inset -2px -3px 4px rgba(0,0,0,0.4);
+  }
+  .ss-spiller-navn { flex: 1; overflow-wrap: anywhere; }
+
+  /* Holdliste */
+  .ss-holdliste { list-style: none; margin: 0.8em 0 0; padding: 0; }
+  .ss-holdliste li {
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+    padding: 0.25em 0;
+    font-size: 1.05rem;
+    min-height: 44px;
+  }
+  .ss-hold-navn { flex: 1; overflow-wrap: anywhere; }
+
+  .ss-hint {
+    font-style: italic;
+    font-size: 0.95rem;
+    color: var(--brun);
+    margin: 0.5em 0 0;
   }
 </style>
 </head>
 <body>
-  <h1>Iggy eller Alma?</h1>
-  <p class="ia-forklaring">Tromlen afgør det. Lander en <span class="ia-iggy">grøn</span> patron øverst, vinder Iggy — lander en <span class="ia-alma">sort</span>, vinder Alma. Lander den på et tomt kammer, vinder ingen.</p>
-  <div class="ia-midte">
-    <div id="ia-tromle-host"></div>
-    <div id="ia-resultat"></div>
+  <h1>Six Shooter</h1>
+
+  <div id="ss-tromle-host"></div>
+  <div id="ss-resultat"></div>
+
+  <!-- Før første spin: stor Spin-knap. Efter et spin: to ikonknapper —
+       fyldt kammer + gentag-pil = spin igen med alle patroner (behold);
+       tomt kammer + gentag-pil = fjern vinderens patron og spin igen. -->
+  <button id="ss-spin-btn" class="kamp-udfør-btn" onclick="ssSpin(false)">Spin!</button>
+  <div id="ss-fortsaet" class="ss-skjult">
+    <button id="ss-behold-btn" class="ss-ikon-btn" onclick="ssSpin(false)"
+            aria-label="Spin igen med alle patroner" title="Spin igen — behold alle patroner"></button>
+    <button id="ss-fjern-btn" class="ss-ikon-btn" onclick="ssSpin(true)"
+            aria-label="Fjern vinderens patron og spin igen" title="Fjern vinderens patron og spin igen"></button>
   </div>
-  <button id="ia-traek-btn" class="kamp-udfør-btn" onclick="iaTræk()">Træk!</button>
-  <!-- Indlejret spin-lyd (samme lyd som spillets sounds/revolver/spin.mp3) -->
-  <audio id="ia-spin-lyd" preload="auto" src="assets/spin.mp3"></audio>
+  <button id="ss-nulstil-btn" class="ss-knap-lille ss-skjult" onclick="ssNulstil()">Læg alle patroner i igen</button>
+
+  <section class="ss-panel">
+    <h2>Spillere</h2>
+    <div class="ss-raekke">
+      <input type="text" id="ss-navn-input" maxlength="18" placeholder="Navn" autocomplete="off">
+      <button class="ss-knap" id="ss-tilfoej-btn" onclick="ssTilfoejSpiller()">Tilføj</button>
+    </div>
+    <div class="ss-farver" id="ss-farver"></div>
+    <ul class="ss-spillerliste" id="ss-spillerliste"></ul>
+    <p class="ss-hint" id="ss-spiller-hint"></p>
+  </section>
+
+  <section class="ss-panel">
+    <h2>Hold</h2>
+    <div class="ss-raekke">
+      <input type="text" id="ss-hold-input" maxlength="24" placeholder="Holdnavn" autocomplete="off">
+      <button class="ss-knap" onclick="ssGemHold()">Gem hold</button>
+    </div>
+    <ul class="ss-holdliste" id="ss-holdliste"></ul>
+    <p class="ss-hint">Gem de aktuelle spillere som et hold. Indlæs et hold for at redigere det, og gem under samme navn for at overskrive.</p>
+  </section>
+
+  <!-- Lyde: spin under tromlerullet; bang ved landing på patron; klik ved tomt kammer -->
+  <audio id="ss-spin-lyd" preload="auto" src="assets/spin.mp3"></audio>
+  <audio id="ss-bang-lyd" preload="auto" src="assets/bang.mp3"></audio>
+  <audio id="ss-klik-lyd" preload="auto" src="assets/klik.mp3"></audio>
 
 <script>
-// ─── Kopieret fra index.html: tromle-konstanter + easing (uændret) ───────────
+// ─── Fra Gallows Creek: tromle-konstanter + easing (uændret) ─────────────────
 const BT_VB_FULL = [-440, -247, 880, 494];
 const BT_CHAMBER_CY = -135;
 const BT_CHAMBER_R = 58;
@@ -179,128 +341,156 @@ function btLerp(a, b, t) { return a.map((v, i) => v + (b[i] - v) * t); }
 function btEaseOut(t)    { return 1 - Math.pow(1 - t, 3); }
 function btEaseInOut(t)  { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
 
-// ─── Spin-lyd — som spillets spilSpinLyd, men afspiller det indlejrede
-//     <audio>-element i stedet for at oprette en ny Audio fra fil ────────────
+// ─── Lyd ─────────────────────────────────────────────────────────────────────
 const masterVolumen = 1;
 let _senesteSpinLydTs = 0;
 function spilSpinLyd() {
   const now = performance.now();
   if (now - _senesteSpinLydTs < 100) return;
   _senesteSpinLydTs = now;
+  spilLyd('ss-spin-lyd', 0.15);
+}
+function spilLyd(id, vol) {
   try {
-    const a = document.getElementById('ia-spin-lyd');
+    const a = document.getElementById(id);
     if (!a) return;
     a.currentTime = 0;
-    a.volume = 0.15 * masterVolumen;
+    a.volume = vol * masterVolumen;
     a.play().catch(() => {});
   } catch (_) { /* afspilning fejler tavst */ }
 }
 
-// ─── Patron-makers — grøn/sort efter roulettens rød/sort-mønster, men med
-//     "Virtual Relic Ammunition"-stempel + primer som de normale patroner.
-//     Tomt kammer er en kopi af spillets btMakeEmpty. ───────────────────────
-function iaMakeGrøn() {
-  return `<circle r="58" fill="#0a0604" stroke="#000" stroke-width="2"/>
-    <circle r="56" fill="url(#bt-bore-g-ia)"/>
-    <circle r="56" fill="url(#ia-groen-g)" stroke="#16280c" stroke-width="1"/>
-    <circle r="56" fill="none" stroke="rgba(0,0,0,0.45)" stroke-width="1.5" transform="translate(0 1.5)"/>
-    <text font-family="Rye,serif" font-size="12" fill="#101e08" letter-spacing="0.8">
-      <textPath href="#bt-stamp-p-ia" startOffset="0%">&#x2726; Virtual Relic Ammunition &#x2726;</textPath>
-    </text>
-    <circle r="18" fill="url(#ia-groen-primer-g)" stroke="#16280c" stroke-width="1"/>
-    <circle r="3" cx="0.5" cy="0.5" fill="#101e08" opacity="0.5"/>`;
+// ─── Farve-hjælpere: spiller-farve → patron-gradient-nuancer ────────────────
+function ssHexTilRgb(hex) {
+  const m = hex.replace('#', '');
+  return [parseInt(m.slice(0, 2), 16), parseInt(m.slice(2, 4), 16), parseInt(m.slice(4, 6), 16)];
+}
+// Blander farven mod hvid (f > 0) eller sort (f < 0); f i [-1, 1].
+function ssNuance(hex, f) {
+  const mål = f >= 0 ? 255 : 0;
+  const k = Math.abs(f);
+  const [r, g, b] = ssHexTilRgb(hex).map(v => Math.round(v + (mål - v) * k));
+  return `#${[r, g, b].map(v => v.toString(16).padStart(2, '0')).join('')}`;
 }
 
-function iaMakeSort() {
-  return `<circle r="58" fill="#0a0604" stroke="#000" stroke-width="2"/>
-    <circle r="56" fill="url(#bt-bore-g-ia)"/>
-    <circle r="56" fill="url(#ia-sort-g)" stroke="#0e0d0a" stroke-width="1"/>
-    <circle r="56" fill="none" stroke="rgba(0,0,0,0.45)" stroke-width="1.5" transform="translate(0 1.5)"/>
-    <text font-family="Rye,serif" font-size="12" fill="#76705e" letter-spacing="0.8">
-      <textPath href="#bt-stamp-p-ia" startOffset="0%">&#x2726; Virtual Relic Ammunition &#x2726;</textPath>
-    </text>
-    <circle r="18" fill="url(#ia-sort-primer-g)" stroke="#0e0c0a" stroke-width="1"/>
-    <circle r="3" cx="0.5" cy="0.5" fill="#060504" opacity="0.5"/>`;
+// ─── Spiller- og holddata ────────────────────────────────────────────────────
+// ssSpillere: [{navn, farve, aktiv}] — aktiv=false når patronen er fjernet.
+// Hold gemmes i localStorage under 'sixshooter-hold' som {navn: [{navn,farve}]}.
+const SS_FARVER = ['#3a5c2a', '#1a1814', '#8a2810', '#8b6914', '#2a4a6b', '#7b4c20', '#5e2a52', '#556055'];
+const SS_MAX_SPILLERE = 6;
+let ssSpillere = [];
+let ssValgtFarve = null;
+let ssArrangement = new Array(6).fill(null);   // slot → spiller-index eller null
+let ssTromleRot = 0;
+let ssAnimating = false;
+let ssZoomedInd = false;
+let ssSidsteVinder = null;                      // spiller-index fra seneste spin (null = tomt kammer)
+
+function ssGemAktuelle() {
+  try { localStorage.setItem('sixshooter-spillere', JSON.stringify(ssSpillere.map(p => ({ navn: p.navn, farve: p.farve })))); } catch (_) {}
+}
+function ssHentAktuelle() {
+  try {
+    const raw = localStorage.getItem('sixshooter-spillere');
+    if (raw) return JSON.parse(raw).slice(0, SS_MAX_SPILLERE).map(p => ({ navn: p.navn, farve: p.farve, aktiv: true }));
+  } catch (_) {}
+  return null;
+}
+function ssHentHold() {
+  try { return JSON.parse(localStorage.getItem('sixshooter-hold') || '{}'); } catch (_) { return {}; }
+}
+function ssSkrivHold(hold) {
+  try { localStorage.setItem('sixshooter-hold', JSON.stringify(hold)); } catch (_) {}
 }
 
-function iaMakeTom() {
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// ─── Patron-/kammer-markup (fra Gallows Creek-makers, farve dynamisk) ────────
+function ssMakePatron(idx) {
+  const p = ssSpillere[idx];
+  const mørk = ssNuance(p.farve, -0.6);
+  const tekst = ssNuance(p.farve, -0.72);
   return `<circle r="58" fill="#0a0604" stroke="#000" stroke-width="2"/>
-    <circle r="56" fill="url(#bt-bore-g-ia)"/>
+    <circle r="56" fill="url(#ss-bore-g)"/>
+    <circle r="56" fill="url(#ss-pat-g-${idx})" stroke="${mørk}" stroke-width="1"/>
+    <circle r="56" fill="none" stroke="rgba(0,0,0,0.45)" stroke-width="1.5" transform="translate(0 1.5)"/>
+    <text font-family="Rye,serif" font-size="12" fill="${tekst}" letter-spacing="0.8">
+      <textPath href="#ss-stamp-p" startOffset="0%">&#x2726; Virtual Relic Ammunition &#x2726;</textPath>
+    </text>
+    <circle r="18" fill="url(#ss-primer-g-${idx})" stroke="${mørk}" stroke-width="1"/>
+    <circle r="3" cx="0.5" cy="0.5" fill="${tekst}" opacity="0.5"/>`;
+}
+
+function ssMakeTom() {
+  return `<circle r="58" fill="#0a0604" stroke="#000" stroke-width="2"/>
+    <circle r="56" fill="url(#ss-bore-g)"/>
     <g opacity="0.3" stroke="#3a2a18" stroke-width="0.8" fill="none">
       <circle r="40"/><circle r="28"/><circle r="16"/>
     </g>
     <circle r="7" fill="#050302"/>`;
 }
 
-// Fælles opslag: arrangement-værdi → patron-/kammer-markup.
-function iaKammerHtml(slags) {
-  if (slags === 'grøn') return iaMakeGrøn();
-  if (slags === 'sort') return iaMakeSort();
-  return iaMakeTom();
+function ssKammerHtml(slot) {
+  const idx = ssArrangement[slot];
+  return idx === null ? ssMakeTom() : ssMakePatron(idx);
 }
 
-// ─── SVG-generator — kopi af rouletteGenererSvg med grøn/sort-gradienter ─────
-function iaGenererSvg(arrangement) {
+// ─── Tromle-SVG (fra rouletteGenererSvg) — gradient-defs pr. spiller, og
+//     spinner-rotation bevares ved gen-render via rot-parameteren ────────────
+function ssGenererSvg(rot) {
+  const spillerDefs = ssSpillere.map((p, i) => `
+          <radialGradient id="ss-pat-g-${i}" cx="50%" cy="38%" r="58%">
+            <stop offset="0%" stop-color="${ssNuance(p.farve, 0.32)}"/>
+            <stop offset="45%" stop-color="${p.farve}"/>
+            <stop offset="85%" stop-color="${ssNuance(p.farve, -0.45)}"/>
+            <stop offset="100%" stop-color="${ssNuance(p.farve, -0.75)}"/>
+          </radialGradient>
+          <radialGradient id="ss-primer-g-${i}" cx="50%" cy="40%" r="55%">
+            <stop offset="0%" stop-color="${ssNuance(p.farve, 0.45)}"/>
+            <stop offset="100%" stop-color="${ssNuance(p.farve, -0.55)}"/>
+          </radialGradient>`).join('');
   const chambersHtml = BT_CHAMBER_ANGLES.map((angle, i) =>
-    `<g transform="rotate(${angle}) translate(135 0)">${iaKammerHtml(arrangement[i])}</g>`
+    `<g transform="rotate(${angle}) translate(135 0)">${ssKammerHtml(i)}</g>`
   ).join('');
   const vb = BT_VB_FULL.join(' ');
   return `<div class="boelle-tromle-frame">
     <div class="boelle-tromle-stage">
-      <svg id="ia-svg" style="width:100%;height:100%;display:block;"
+      <svg id="ss-svg" style="width:100%;height:100%;display:block;"
            viewBox="${vb}" xmlns="http://www.w3.org/2000/svg"
            preserveAspectRatio="xMidYMid meet">
         <defs>
-          <radialGradient id="bt-bg-g-ia" cx="50%" cy="35%" r="70%">
+          <radialGradient id="ss-bg-g" cx="50%" cy="35%" r="70%">
             <stop offset="0%" stop-color="#e8d8b0"/>
             <stop offset="55%" stop-color="#d8c59a"/>
             <stop offset="100%" stop-color="#c0a870"/>
           </radialGradient>
-          <radialGradient id="bt-steel-g-ia" cx="50%" cy="50%" r="55%">
+          <radialGradient id="ss-steel-g" cx="50%" cy="50%" r="55%">
             <stop offset="0%" stop-color="#c8c0b4"/>
             <stop offset="45%" stop-color="#9a9288"/>
             <stop offset="80%" stop-color="#6a6258"/>
             <stop offset="100%" stop-color="#3e382e"/>
           </radialGradient>
-          <radialGradient id="bt-bore-g-ia" cx="50%" cy="42%" r="55%">
+          <radialGradient id="ss-bore-g" cx="50%" cy="42%" r="55%">
             <stop offset="0%" stop-color="#1a120a"/>
             <stop offset="100%" stop-color="#000"/>
           </radialGradient>
-          <radialGradient id="bt-hub-g-ia" cx="50%" cy="40%" r="55%">
+          <radialGradient id="ss-hub-g" cx="50%" cy="40%" r="55%">
             <stop offset="0%" stop-color="#8a7a68"/>
             <stop offset="50%" stop-color="#3a2e22"/>
             <stop offset="100%" stop-color="#0e0a06"/>
-          </radialGradient>
-          <radialGradient id="ia-groen-g" cx="50%" cy="38%" r="58%">
-            <stop offset="0%" stop-color="#5a7c42"/>
-            <stop offset="45%" stop-color="#3a5c2a"/>
-            <stop offset="85%" stop-color="#1e3414"/>
-            <stop offset="100%" stop-color="#0c1606"/>
-          </radialGradient>
-          <radialGradient id="ia-groen-primer-g" cx="50%" cy="40%" r="55%">
-            <stop offset="0%" stop-color="#6a8c50"/>
-            <stop offset="100%" stop-color="#16280c"/>
-          </radialGradient>
-          <radialGradient id="ia-sort-g" cx="50%" cy="38%" r="58%">
-            <stop offset="0%" stop-color="#3a3830"/>
-            <stop offset="45%" stop-color="#1a1814"/>
-            <stop offset="85%" stop-color="#0e0d0a"/>
-            <stop offset="100%" stop-color="#060504"/>
-          </radialGradient>
-          <radialGradient id="ia-sort-primer-g" cx="50%" cy="40%" r="55%">
-            <stop offset="0%" stop-color="#484540"/>
-            <stop offset="100%" stop-color="#0e0c0a"/>
-          </radialGradient>
-          <path id="bt-stamp-p-ia" d="M 0 0 m -40 0 a 40 40 0 1 1 80 0 a 40 40 0 1 1 -80 0" fill="none"/>
+          </radialGradient>${spillerDefs}
+          <path id="ss-stamp-p" d="M 0 0 m -40 0 a 40 40 0 1 1 80 0 a 40 40 0 1 1 -80 0" fill="none"/>
         </defs>
-        <rect x="-9999" y="-9999" width="19998" height="19998" fill="url(#bt-bg-g-ia)"/>
-        <g id="ia-spinner">
-          <circle cx="0" cy="0" r="232" fill="url(#bt-steel-g-ia)" stroke="#000" stroke-width="2"/>
+        <rect x="-9999" y="-9999" width="19998" height="19998" fill="url(#ss-bg-g)"/>
+        <g id="ss-spinner" transform="rotate(${rot})">
+          <circle cx="0" cy="0" r="232" fill="url(#ss-steel-g)" stroke="#000" stroke-width="2"/>
           <circle cx="0" cy="0" r="206" fill="#5a5248" stroke="#7a7268" stroke-width="1.5"/>
-          <g id="ia-chambers">${chambersHtml}</g>
+          <g id="ss-chambers">${chambersHtml}</g>
           <g>
             <circle r="48" fill="#0a0604" stroke="#000" stroke-width="1.5"/>
-            <circle r="44" fill="url(#bt-hub-g-ia)"/>
+            <circle r="44" fill="url(#ss-hub-g)"/>
             <g fill="#5a4a38" stroke="#0a0604" stroke-width="1.2" stroke-linejoin="round">
               <path d="M 0 -36 L 7 -10 L 0 -4 L -7 -10 Z" transform="rotate(0)"/>
               <path d="M 0 -36 L 7 -10 L 0 -4 L -7 -10 Z" transform="rotate(60)"/>
@@ -310,7 +500,7 @@ function iaGenererSvg(arrangement) {
               <path d="M 0 -36 L 7 -10 L 0 -4 L -7 -10 Z" transform="rotate(300)"/>
             </g>
             <circle r="10" fill="#1a140e" stroke="#000" stroke-width="1"/>
-            <circle r="6" fill="url(#bt-hub-g-ia)"/>
+            <circle r="6" fill="url(#ss-hub-g)"/>
             <circle r="2" fill="#0a0604"/>
           </g>
         </g>
@@ -320,14 +510,15 @@ function iaGenererSvg(arrangement) {
   </div>`;
 }
 
-// ─── Spin-animation — kopi af rouletteAnimerTromle, men med tre kammer-slags:
-//     lander på et tilfældigt kammer af den ønskede slags, 4 sek spin + zoom ─
-function iaAnimerTromle(targetSlags, onDone) {
+function ssRenderTromle() {
+  document.getElementById('ss-tromle-host').innerHTML = ssGenererSvg(ssTromleRot);
+}
+
+// ─── Spin-animation (fra rouletteAnimerTromle) — lander på et bestemt slot ──
+function ssAnimerTromle(targetSlot, onDone) {
   spilSpinLyd();
-  const candidates = iaArrangement.reduce((acc, c, i) => { if (c === targetSlags) acc.push(i); return acc; }, []);
-  const targetSlot = candidates[Math.floor(Math.random() * candidates.length)];
   const targetAngle = (((-90 - BT_CHAMBER_ANGLES[targetSlot]) % 360) + 360) % 360;
-  const currentRot = iaTromleRot;
+  const currentRot = ssTromleRot;
   const mod = ((currentRot % 360) + 360) % 360;
   let toTarget = ((targetAngle - mod) % 360 + 360) % 360;
   if (toTarget < 5) toTarget += 360;
@@ -335,8 +526,8 @@ function iaAnimerTromle(targetSlags, onDone) {
   const startRot = currentRot;
   let start = null;
   function step(ts) {
-    const el = document.getElementById('ia-svg');
-    const sp = document.getElementById('ia-spinner');
+    const el = document.getElementById('ss-svg');
+    const sp = document.getElementById('ss-spinner');
     if (!el || !sp) { onDone(startRot + totalSpin); return; }
     if (!start) start = ts;
     const t = Math.min((ts - start) / 4000, 1);
@@ -348,14 +539,14 @@ function iaAnimerTromle(targetSlags, onDone) {
   requestAnimationFrame(step);
 }
 
-// ─── Zoom ud — kopi af btZoomUd's viewBox-lerp (600 ms), uden re-render ──────
-function iaZoomUd(onDone) {
-  const svgEl = document.getElementById('ia-svg');
+// ─── Zoom ud (fra btZoomUd) — viewBox-lerp 600 ms ───────────────────────────
+function ssZoomUd(onDone) {
+  const svgEl = document.getElementById('ss-svg');
   if (!svgEl) { onDone(); return; }
   const from = BT_VB_ZOOM.slice();
   let start = null;
   function step(ts) {
-    const el = document.getElementById('ia-svg');
+    const el = document.getElementById('ss-svg');
     if (!el) { onDone(); return; }
     if (!start) start = ts;
     const t = Math.min((ts - start) / 600, 1);
@@ -366,69 +557,267 @@ function iaZoomUd(onDone) {
   requestAnimationFrame(step);
 }
 
-// ─── Picker-logik ────────────────────────────────────────────────────────────
-let iaTromleRot = 0;
-let iaAnimating = false;
-let iaZoomedInd = false;
-let iaArrangement = iaShuffle();
-
-// Fisher-Yates over 2 grønne + 2 sorte + 2 tomme (samme princip som roulettens shuffle).
-function iaShuffle() {
-  const arr = ['grøn', 'grøn', 'sort', 'sort', 'tom', 'tom'];
-  for (let i = arr.length - 1; i > 0; i--) {
+// ─── Spin-mekanik ────────────────────────────────────────────────────────────
+// Hver aktiv spiller har præcis én patron; tromlen har 6 kamre, resten er
+// tomme. Udfaldet afgøres FØR animationen: et tilfældigt slot (1/6 pr. kammer
+// — dvs. 1/6 pr. spiller, resten tomme kamre).
+function ssShuffleArrangement() {
+  const slots = [0, 1, 2, 3, 4, 5];
+  for (let i = slots.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
+    [slots[i], slots[j]] = [slots[j], slots[i]];
   }
-  return arr;
+  ssArrangement = new Array(6).fill(null);
+  let k = 0;
+  ssSpillere.forEach((p, idx) => { if (p.aktiv) ssArrangement[slots[k++]] = idx; });
 }
 
-// Re-renderer kamrene med nyt arrangement — createElementNS som i
-// btRenderChambers (undgår SVG-innerHTML-quirken ved direkte innerHTML på g).
-function iaRenderChambers() {
-  const g = document.getElementById('ia-chambers');
-  if (!g) return;
-  g.innerHTML = '';
-  for (let i = 0; i < 6; i++) {
-    const el = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    el.setAttribute('transform', `rotate(${BT_CHAMBER_ANGLES[i]}) translate(135 0)`);
-    el.innerHTML = iaKammerHtml(iaArrangement[i]);
-    g.appendChild(el);
+function ssSpin(fjernVinder) {
+  if (ssAnimating) return;
+  if (fjernVinder && ssSidsteVinder !== null) {
+    ssSpillere[ssSidsteVinder].aktiv = false;
   }
-}
-
-function iaVisResultat(udfald) {
-  const r = document.getElementById('ia-resultat');
-  if (udfald === 'grøn')      { r.className = 'ia-iggy';  r.textContent = 'IGGY VINDER'; }
-  else if (udfald === 'sort') { r.className = 'ia-alma';  r.textContent = 'ALMA VINDER'; }
-  else                        { r.className = 'ia-ingen'; r.textContent = 'INGEN VINDER'; }
-}
-
-function iaTræk() {
-  if (iaAnimating) return;
-  iaAnimating = true;
-  const btn = document.getElementById('ia-traek-btn');
-  btn.disabled = true;
-  const r = document.getElementById('ia-resultat');
+  if (ssAktiveAntal() === 0) { ssOpdaterKnapper(); return; }
+  ssAnimating = true;
+  ssSidsteVinder = null;
+  document.getElementById('ss-spin-btn').disabled = true;
+  document.getElementById('ss-behold-btn').disabled = true;
+  document.getElementById('ss-fjern-btn').disabled = true;
+  const r = document.getElementById('ss-resultat');
   r.className = '';
   r.textContent = '';
-  // 1/3 hver (2 af hver kammer-slags i tromlen) — afgøres FØR animationen
-  const udfald = ['grøn', 'sort', 'tom'][Math.floor(Math.random() * 3)];
+  r.style.color = '';
   const startSpin = () => {
-    iaArrangement = iaShuffle();
-    iaRenderChambers();
-    iaAnimerTromle(udfald, (rot) => {
-      iaTromleRot = rot;
-      iaZoomedInd = true;
-      iaVisResultat(udfald);
-      iaAnimating = false;
-      btn.disabled = false;
+    ssShuffleArrangement();
+    ssRenderTromle();
+    const targetSlot = Math.floor(Math.random() * 6);
+    ssAnimerTromle(targetSlot, (rot) => {
+      ssTromleRot = rot;
+      ssZoomedInd = true;
+      ssAnimating = false;
+      const vinder = ssArrangement[targetSlot];
+      ssSidsteVinder = vinder;
+      if (vinder !== null) {
+        spilLyd('ss-bang-lyd', 0.5);
+        r.textContent = `${ssSpillere[vinder].navn.toUpperCase()}!`;
+        r.style.color = ssNuance(ssSpillere[vinder].farve, -0.15);
+      } else {
+        spilLyd('ss-klik-lyd', 0.6);
+        r.className = 'ss-klik';
+        r.textContent = 'KLIK — TOMT KAMMER';
+      }
+      ssVisFortsaet();
     });
   };
-  if (iaZoomedInd) { iaZoomedInd = false; iaZoomUd(startSpin); }
+  if (ssZoomedInd) { ssZoomedInd = false; ssZoomUd(startSpin); }
   else { startSpin(); }
 }
 
-document.getElementById('ia-tromle-host').innerHTML = iaGenererSvg(iaArrangement);
+function ssAktiveAntal() { return ssSpillere.filter(p => p.aktiv).length; }
+
+// Efter et spin: skift fra Spin-knappen til de to ikonknapper.
+function ssVisFortsaet() {
+  document.getElementById('ss-spin-btn').classList.add('ss-skjult');
+  document.getElementById('ss-fortsaet').classList.remove('ss-skjult');
+  ssOpdaterKnapper();
+  ssRenderSpillerliste();
+}
+
+// Tilbage til udgangspunktet (stor Spin-knap, alle patroner i tromlen).
+function ssNulstil() {
+  ssSpillere.forEach(p => { p.aktiv = true; });
+  ssSidsteVinder = null;
+  ssZoomedInd = false;
+  ssTromleRot = 0;
+  document.getElementById('ss-spin-btn').classList.remove('ss-skjult');
+  document.getElementById('ss-fortsaet').classList.add('ss-skjult');
+  const r = document.getElementById('ss-resultat');
+  r.className = '';
+  r.textContent = '';
+  ssShuffleArrangement();
+  ssRenderTromle();
+  ssOpdaterKnapper();
+  ssRenderSpillerliste();
+}
+
+function ssOpdaterKnapper() {
+  const aktive = ssAktiveAntal();
+  document.getElementById('ss-spin-btn').disabled = ssAnimating || aktive === 0;
+  // Behold: spin igen med de patroner der ER i tromlen.
+  document.getElementById('ss-behold-btn').disabled = ssAnimating || aktive === 0;
+  // Fjern: kræver en vinder i seneste spin — og at der bliver mindst én patron tilbage.
+  document.getElementById('ss-fjern-btn').disabled = ssAnimating || ssSidsteVinder === null || aktive <= 1;
+  const nogenUde = ssSpillere.some(p => !p.aktiv);
+  document.getElementById('ss-nulstil-btn').classList.toggle('ss-skjult', !nogenUde);
+  const hint = document.getElementById('ss-spiller-hint');
+  if (ssSpillere.length === 0) hint.textContent = 'Tilføj spillere for at kunne spinne — hver spiller får én patron i sin farve.';
+  else if (ssSpillere.length >= SS_MAX_SPILLERE) hint.textContent = 'Tromlen er fuld (6 kamre).';
+  else hint.textContent = '';
+}
+
+// ─── Fortsæt-ikonerne: kammer-nærbillede + cirkulær gentag-pil ───────────────
+// Fyldt kammer (messing-patron) = behold alle patroner; tomt kammer = fjern
+// vinderens patron. Pilen tegnes som en 300°-bue med pilespids.
+function ssIkonSvg(fyldt) {
+  const pfx = fyldt ? 'ssikb' : 'ssike';
+  const kammer = fyldt
+    ? `<circle cx="60" cy="60" r="30" fill="url(#${pfx}-brass)" stroke="#3a2410" stroke-width="1.5"/>
+       <circle cx="60" cy="60" r="11" fill="url(#${pfx}-primer)" stroke="#2a1a08" stroke-width="1"/>
+       <circle cx="60.4" cy="60.4" r="2" fill="#2a1a08" opacity="0.6"/>`
+    : `<circle cx="60" cy="60" r="30" fill="url(#${pfx}-bore)"/>
+       <g opacity="0.35" stroke="#5a4226" stroke-width="1" fill="none">
+         <circle cx="60" cy="60" r="21"/><circle cx="60" cy="60" r="14"/><circle cx="60" cy="60" r="7"/>
+       </g>
+       <circle cx="60" cy="60" r="3.5" fill="#050302"/>`;
+  return `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <defs>
+      <radialGradient id="${pfx}-brass" cx="50%" cy="38%" r="58%">
+        <stop offset="0%" stop-color="#f6dca0"/>
+        <stop offset="45%" stop-color="#c89858"/>
+        <stop offset="85%" stop-color="#7a5a2c"/>
+        <stop offset="100%" stop-color="#3e2a10"/>
+      </radialGradient>
+      <radialGradient id="${pfx}-primer" cx="50%" cy="40%" r="55%">
+        <stop offset="0%" stop-color="#d8b878"/>
+        <stop offset="100%" stop-color="#3a2a14"/>
+      </radialGradient>
+      <radialGradient id="${pfx}-bore" cx="50%" cy="42%" r="55%">
+        <stop offset="0%" stop-color="#241a10"/>
+        <stop offset="100%" stop-color="#060402"/>
+      </radialGradient>
+    </defs>
+    <circle cx="60" cy="60" r="32" fill="#0a0604"/>
+    ${kammer}
+    <path d="M 60 10 A 50 50 0 1 1 16.7 85" fill="none"
+          stroke="#4a2a00" stroke-width="7" stroke-linecap="round"/>
+    <path d="M 23.7 72.9 L 23.6 89 L 9.8 81 Z" fill="#4a2a00"/>
+  </svg>`;
+}
+
+// ─── Spillere: tilføj/fjern + farvevalg ─────────────────────────────────────
+function ssLedigeFarver() {
+  const brugte = new Set(ssSpillere.map(p => p.farve));
+  return SS_FARVER.filter(f => !brugte.has(f));
+}
+
+function ssRenderFarver() {
+  const brugte = new Set(ssSpillere.map(p => p.farve));
+  if (ssValgtFarve === null || brugte.has(ssValgtFarve)) {
+    ssValgtFarve = ssLedigeFarver()[0] || null;
+  }
+  document.getElementById('ss-farver').innerHTML = SS_FARVER.map(f => {
+    const brugt = brugte.has(f);
+    const valgt = f === ssValgtFarve;
+    return `<button type="button" class="ss-farve${valgt ? ' ss-valgt' : ''}"
+      style="background:radial-gradient(circle at 38% 33%, ${ssNuance(f, 0.35)}, ${f} 55%, ${ssNuance(f, -0.4)})"
+      ${brugt ? 'disabled' : ''} onclick="ssVaelgFarve('${f}')"
+      aria-label="Vælg farve"></button>`;
+  }).join('');
+}
+
+function ssVaelgFarve(f) {
+  ssValgtFarve = f;
+  ssRenderFarver();
+}
+
+function ssTilfoejSpiller() {
+  const input = document.getElementById('ss-navn-input');
+  const navn = input.value.trim();
+  if (!navn || ssSpillere.length >= SS_MAX_SPILLERE || !ssValgtFarve) return;
+  ssSpillere.push({ navn, farve: ssValgtFarve, aktiv: true });
+  input.value = '';
+  ssGemAktuelle();
+  ssEfterRosterAendring();
+}
+
+function ssFjernSpiller(idx) {
+  ssSpillere.splice(idx, 1);
+  ssGemAktuelle();
+  ssEfterRosterAendring();
+}
+
+// Roster ændret → alle patroner i tromlen igen og tilbage til Spin-knappen.
+function ssEfterRosterAendring() {
+  ssSpillere.forEach(p => { p.aktiv = true; });
+  ssSidsteVinder = null;
+  ssZoomedInd = false;
+  document.getElementById('ss-spin-btn').classList.remove('ss-skjult');
+  document.getElementById('ss-fortsaet').classList.add('ss-skjult');
+  const r = document.getElementById('ss-resultat');
+  r.className = '';
+  r.textContent = '';
+  ssShuffleArrangement();
+  ssRenderTromle();
+  ssRenderFarver();
+  ssRenderSpillerliste();
+  ssOpdaterKnapper();
+  document.getElementById('ss-tilfoej-btn').disabled = ssSpillere.length >= SS_MAX_SPILLERE;
+}
+
+function ssRenderSpillerliste() {
+  document.getElementById('ss-spillerliste').innerHTML = ssSpillere.map((p, i) => `
+    <li class="${p.aktiv ? '' : 'ss-ude'}">
+      <span class="ss-patron-dot" style="background:radial-gradient(circle at 38% 33%, ${ssNuance(p.farve, 0.35)}, ${p.farve} 55%, ${ssNuance(p.farve, -0.4)})"></span>
+      <span class="ss-spiller-navn">${esc(p.navn)}${p.aktiv ? '' : ' (patron fjernet)'}</span>
+      <button class="ss-knap-lille" onclick="ssFjernSpiller(${i})" aria-label="Fjern ${esc(p.navn)}">&times;</button>
+    </li>`).join('');
+}
+
+// ─── Hold: gem / indlæs / slet (localStorage) ───────────────────────────────
+function ssGemHold() {
+  const input = document.getElementById('ss-hold-input');
+  const navn = input.value.trim();
+  if (!navn || ssSpillere.length === 0) return;
+  const hold = ssHentHold();
+  hold[navn] = ssSpillere.map(p => ({ navn: p.navn, farve: p.farve }));
+  ssSkrivHold(hold);
+  input.value = '';
+  ssRenderHoldliste();
+}
+
+function ssIndlaesHold(navn) {
+  const hold = ssHentHold();
+  if (!hold[navn]) return;
+  ssSpillere = hold[navn].slice(0, SS_MAX_SPILLERE).map(p => ({ navn: p.navn, farve: p.farve, aktiv: true }));
+  document.getElementById('ss-hold-input').value = navn;   // klar til redigér-og-gem
+  ssGemAktuelle();
+  ssEfterRosterAendring();
+}
+
+function ssSletHold(navn) {
+  const hold = ssHentHold();
+  delete hold[navn];
+  ssSkrivHold(hold);
+  ssRenderHoldliste();
+}
+
+function ssRenderHoldliste() {
+  const hold = ssHentHold();
+  const navne = Object.keys(hold).sort((a, b) => a.localeCompare(b, 'da'));
+  document.getElementById('ss-holdliste').innerHTML = navne.length === 0
+    ? '<li style="font-style:italic;color:var(--brun);">Ingen gemte hold endnu.</li>'
+    : navne.map(n => `
+      <li>
+        <span class="ss-hold-navn">${esc(n)} <small>(${hold[n].length} spillere)</small></span>
+        <button class="ss-knap-lille" onclick="ssIndlaesHold(${JSON.stringify(n).replace(/"/g, '&quot;')})">Indlæs</button>
+        <button class="ss-knap-lille" onclick="ssSletHold(${JSON.stringify(n).replace(/"/g, '&quot;')})" aria-label="Slet ${esc(n)}">Slet</button>
+      </li>`).join('');
+}
+
+// ─── Init ────────────────────────────────────────────────────────────────────
+document.getElementById('ss-behold-btn').innerHTML = ssIkonSvg(true);
+document.getElementById('ss-fjern-btn').innerHTML = ssIkonSvg(false);
+document.getElementById('ss-navn-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') ssTilfoejSpiller();
+});
+// Startbesætning: gemte spillere fra sidst, ellers Iggy & Alma (arven fra
+// iggy-alma-picker — grøn og sort patron).
+ssSpillere = ssHentAktuelle() || [
+  { navn: 'Iggy', farve: '#3a5c2a', aktiv: true },
+  { navn: 'Alma', farve: '#1a1814', aktiv: true },
+];
+ssRenderHoldliste();
+ssEfterRosterAendring();
 </script>
 </body>
 </html>
