@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="da">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -54,24 +54,45 @@
   /* Hovedsiden centrerer tromle + knapper lodret — ren og luftig */
   #ss-side-hoved { justify-content: center; gap: 6vw; }
 
-  /* Diskret hjørneknap (tandhjul på hovedsiden, × på opsætningssiden) */
-  .ss-hjoerne-btn {
+  /* Diskrete hjørneknapper (restart + tandhjul på hovedsiden; × på
+     opsætningssiden via .ss-hjoerne-fast) */
+  .ss-hjoerne-gruppe {
     position: fixed;
     top: max(3vw, env(safe-area-inset-top));
     right: 3vw;
+    display: flex;
+    gap: 10px;
+    z-index: 10;
+  }
+  .ss-hjoerne-btn {
     width: 52px;
     height: 52px;
-    padding: 8px;
+    padding: 9px;
     background: rgba(245, 240, 220, 0.55);
     border: 1px solid var(--messing);
     border-radius: 50%;
     cursor: pointer;
     touch-action: manipulation;
     opacity: 0.75;
-    z-index: 10;
     box-shadow: 2px 3px 8px rgba(30, 15, 5, 0.25);
   }
   .ss-hjoerne-btn svg { width: 100%; height: 100%; display: block; }
+  .ss-hjoerne-fast {
+    position: fixed;
+    top: max(3vw, env(safe-area-inset-top));
+    right: 3vw;
+    z-index: 10;
+  }
+
+  /* Fast knap-zone: Spin-knappen og fortsæt-ikonerne bytter plads inde i en
+     zone med FAST højde (= ikonknappernes), så tromle/resultat/knapper aldrig
+     forskydes når tilstanden skifter. */
+  .ss-knap-zone {
+    height: clamp(64px, 20vw, 88px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
   h1 {
     font-family: 'BleedingCowboys', 'OldNewspaperTypes', serif;
     font-size: clamp(2.4rem, 11vw, 4rem);
@@ -121,16 +142,22 @@
       inset -5px 0 16px var(--skygge);
   }
 
-  /* Resultat-linjen under tromlen */
+  /* Resultat-linjen under tromlen — FAST højde (uafhængig af indhold og
+     font-størrelse), så layoutet ikke forskydes når resultatet skifter. */
   #ss-resultat {
     font-family: 'BleedingCowboys', 'OldNewspaperTypes', serif;
     font-size: clamp(2rem, 10vw, 3.4rem);
-    min-height: 1.3em;
+    height: calc(clamp(2rem, 10vw, 3.4rem) * 1.3);
     line-height: 1.3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     text-shadow: 2px 2px 4px var(--skygge);
     text-align: center;
     padding: 0 6vw;
-    overflow-wrap: anywhere;
+    box-sizing: border-box;
+    max-width: 100vw;
+    overflow: hidden;
   }
   #ss-resultat.ss-klik {
     color: var(--brun-moerk);
@@ -313,34 +340,44 @@
   <!-- ── Hovedside: kun tromlen + spin/fortsæt-knapper (så ren som muligt).
        Opsætningen tilgås via tandhjulet i hjørnet. ─────────────────────── -->
   <div id="ss-side-hoved" class="ss-side">
-    <button class="ss-hjoerne-btn" onclick="ssVisOpsaetning(true)" aria-label="Opsætning" title="Spillere og hold">
-      <svg viewBox="0 0 48 48" aria-hidden="true">
-        <g fill="none" stroke="#4a2a00" stroke-width="3.2" stroke-linejoin="round">
-          <circle cx="24" cy="24" r="8"/>
-          <path stroke-linecap="round" d="M24 6v6 M24 36v6 M6 24h6 M36 24h6 M11.3 11.3l4.2 4.2 M32.5 32.5l4.2 4.2 M36.7 11.3l-4.2 4.2 M15.5 32.5l-4.2 4.2"/>
-        </g>
-      </svg>
-    </button>
+    <!-- Diskrete hjørneknapper: restart (læg alle patroner i igen) + tandhjul -->
+    <div class="ss-hjoerne-gruppe">
+      <button class="ss-hjoerne-btn" onclick="ssNulstil()" aria-label="Restart — reload all cartridges" title="Restart — reload all cartridges">
+        <svg viewBox="0 0 48 48" aria-hidden="true">
+          <path d="M 38 24 A 14 14 0 1 1 24 10" fill="none"
+                stroke="#4a2a00" stroke-width="3.6" stroke-linecap="round"/>
+          <path d="M 23 3.5 L 33 10 L 23 16.5 Z" fill="#4a2a00"/>
+        </svg>
+      </button>
+      <button class="ss-hjoerne-btn" onclick="ssVisOpsaetning(true)" aria-label="Setup — players and teams" title="Setup — players and teams">
+        <svg viewBox="0 0 48 48" aria-hidden="true">
+          <!-- 8-takket tandhjul med centerhul (evenodd) -->
+          <path fill="#4a2a00" fill-rule="evenodd" d="M 20.0 9.0 L 21.1 3.2 L 26.9 3.2 L 28.0 9.0 L 31.8 10.6 L 36.6 7.2 L 40.8 11.4 L 37.4 16.2 L 39.0 20.0 L 44.8 21.1 L 44.8 26.9 L 39.0 28.0 L 37.4 31.8 L 40.8 36.6 L 36.6 40.8 L 31.8 37.4 L 28.0 39.0 L 26.9 44.8 L 21.1 44.8 L 20.0 39.0 L 16.3 37.4 L 11.4 40.8 L 7.2 36.6 L 10.6 31.8 L 9.0 28.0 L 3.2 26.9 L 3.2 21.1 L 9.0 20.0 L 10.6 16.2 L 7.2 11.4 L 11.4 7.2 L 16.2 10.6 Z M 30.5 24 A 6.5 6.5 0 1 1 17.5 24 A 6.5 6.5 0 1 1 30.5 24 Z"/>
+        </svg>
+      </button>
+    </div>
 
     <div id="ss-tromle-host"></div>
     <div id="ss-resultat"></div>
 
-    <!-- Før første spin: stor Spin-knap. Efter et spin: to ikonknapper —
-         fyldt kammer + gentag-pil = spin igen med alle patroner (behold);
+    <!-- Knap-zonen har FAST højde: Spin-knappen og de to ikonknapper bytter
+         plads inde i den, så tromlen og resten af layoutet aldrig forskydes.
+         Fyldt kammer + gentag-pil = spin igen med alle patroner (behold);
          tomt kammer + gentag-pil = fjern vinderens patron og spin igen. -->
-    <button id="ss-spin-btn" class="kamp-udfør-btn" onclick="ssSpin(false)">Spin!</button>
-    <div id="ss-fortsaet" class="ss-skjult">
-      <button id="ss-behold-btn" class="ss-ikon-btn" onclick="ssSpin(false)"
-              aria-label="Spin igen med alle patroner" title="Spin igen — behold alle patroner"></button>
-      <button id="ss-fjern-btn" class="ss-ikon-btn" onclick="ssSpin(true)"
-              aria-label="Fjern vinderens patron og spin igen" title="Fjern vinderens patron og spin igen"></button>
+    <div class="ss-knap-zone">
+      <button id="ss-spin-btn" class="kamp-udfør-btn" onclick="ssSpin(false)">Spin!</button>
+      <div id="ss-fortsaet" class="ss-skjult">
+        <button id="ss-behold-btn" class="ss-ikon-btn" onclick="ssSpin(false)"
+                aria-label="Spin again with all cartridges" title="Spin again — keep all cartridges"></button>
+        <button id="ss-fjern-btn" class="ss-ikon-btn" onclick="ssSpin(true)"
+                aria-label="Remove the winner's cartridge and spin again" title="Remove the winner's cartridge and spin again"></button>
+      </div>
     </div>
-    <button id="ss-nulstil-btn" class="ss-knap-lille ss-skjult" onclick="ssNulstil()">Læg alle patroner i igen</button>
   </div>
 
   <!-- ── Opsætningsside: spillere + hold. Vises/skjules med CSS. ───────── -->
   <div id="ss-side-opsaetning" class="ss-side ss-skjult">
-    <button class="ss-hjoerne-btn" onclick="ssVisOpsaetning(false)" aria-label="Tilbage til tromlen" title="Tilbage til tromlen">
+    <button class="ss-hjoerne-btn ss-hjoerne-fast" onclick="ssVisOpsaetning(false)" aria-label="Back to the cylinder" title="Back to the cylinder">
       <svg viewBox="0 0 48 48" aria-hidden="true">
         <path d="M14 14 L34 34 M34 14 L14 34" fill="none" stroke="#4a2a00" stroke-width="4" stroke-linecap="round"/>
       </svg>
@@ -349,10 +386,10 @@
     <h1>Six Shooter</h1>
 
     <section class="ss-panel">
-      <h2>Spillere</h2>
+      <h2>Players</h2>
       <div class="ss-raekke">
-        <input type="text" id="ss-navn-input" maxlength="18" placeholder="Navn" autocomplete="off">
-        <button class="ss-knap" id="ss-tilfoej-btn" onclick="ssTilfoejSpiller()">Tilføj</button>
+        <input type="text" id="ss-navn-input" maxlength="18" placeholder="Name" autocomplete="off">
+        <button class="ss-knap" id="ss-tilfoej-btn" onclick="ssTilfoejSpiller()">Add</button>
       </div>
       <div class="ss-farver" id="ss-farver"></div>
       <ul class="ss-spillerliste" id="ss-spillerliste"></ul>
@@ -360,16 +397,16 @@
     </section>
 
     <section class="ss-panel">
-      <h2>Hold</h2>
+      <h2>Teams</h2>
       <div class="ss-raekke">
-        <input type="text" id="ss-hold-input" maxlength="24" placeholder="Holdnavn" autocomplete="off">
-        <button class="ss-knap" onclick="ssGemHold()">Gem hold</button>
+        <input type="text" id="ss-hold-input" maxlength="24" placeholder="Team name" autocomplete="off">
+        <button class="ss-knap" onclick="ssGemHold()">Save team</button>
       </div>
       <ul class="ss-holdliste" id="ss-holdliste"></ul>
-      <p class="ss-hint">Gem de aktuelle spillere som et hold. Indlæs et hold for at redigere det, og gem under samme navn for at overskrive.</p>
+      <p class="ss-hint">Save the current players as a team. Load a team to edit it, then save under the same name to overwrite.</p>
     </section>
 
-    <button class="kamp-udfør-btn" onclick="ssVisOpsaetning(false)">Tilbage til tromlen</button>
+    <button class="kamp-udfør-btn" onclick="ssVisOpsaetning(false)">Back to the cylinder</button>
   </div>
 
   <!-- Lyde: spin under tromlerullet; bang ved landing på patron; klik ved tomt kammer -->
@@ -691,7 +728,7 @@ function ssSpin(fjernVinder) {
       } else {
         spilLyd('ss-klik-lyd', 0.6);
         r.className = 'ss-klik';
-        r.textContent = 'KLIK — TOMT KAMMER';
+        r.textContent = 'CLICK — EMPTY CHAMBER';
       }
       ssVisFortsaet();
       // Automatisk smooth zoom-ud efter 3 sekunder — medmindre brugeren
@@ -751,11 +788,9 @@ function ssOpdaterKnapper() {
   document.getElementById('ss-behold-btn').disabled = ssAnimating || aktive === 0;
   // Fjern: kræver en vinder i seneste spin — og at der bliver mindst én patron tilbage.
   document.getElementById('ss-fjern-btn').disabled = ssAnimating || ssSidsteVinder === null || aktive <= 1;
-  const nogenUde = ssSpillere.some(p => !p.aktiv);
-  document.getElementById('ss-nulstil-btn').classList.toggle('ss-skjult', !nogenUde);
   const hint = document.getElementById('ss-spiller-hint');
-  if (ssSpillere.length === 0) hint.textContent = 'Tilføj spillere for at kunne spinne — hver spiller får én patron i sin farve.';
-  else if (ssSpillere.length >= SS_MAX_SPILLERE) hint.textContent = 'Tromlen er fuld (6 kamre).';
+  if (ssSpillere.length === 0) hint.textContent = 'Add players to spin — each player gets one cartridge in their colour.';
+  else if (ssSpillere.length >= SS_MAX_SPILLERE) hint.textContent = 'The cylinder is full (6 chambers).';
   else hint.textContent = '';
 }
 
@@ -815,7 +850,7 @@ function ssRenderFarver() {
     return `<button type="button" class="ss-farve${valgt ? ' ss-valgt' : ''}"
       style="background:radial-gradient(circle at 38% 33%, ${ssNuance(f, 0.35)}, ${f} 55%, ${ssNuance(f, -0.4)})"
       ${brugt ? 'disabled' : ''} onclick="ssVaelgFarve('${f}')"
-      aria-label="Vælg farve"></button>`;
+      aria-label="Choose colour"></button>`;
   }).join('');
 }
 
@@ -863,8 +898,8 @@ function ssRenderSpillerliste() {
   document.getElementById('ss-spillerliste').innerHTML = ssSpillere.map((p, i) => `
     <li class="${p.aktiv ? '' : 'ss-ude'}">
       <span class="ss-patron-dot" style="background:radial-gradient(circle at 38% 33%, ${ssNuance(p.farve, 0.35)}, ${p.farve} 55%, ${ssNuance(p.farve, -0.4)})"></span>
-      <span class="ss-spiller-navn">${esc(p.navn)}${p.aktiv ? '' : ' (patron fjernet)'}</span>
-      <button class="ss-knap-lille" onclick="ssFjernSpiller(${i})" aria-label="Fjern ${esc(p.navn)}">&times;</button>
+      <span class="ss-spiller-navn">${esc(p.navn)}${p.aktiv ? '' : ' (cartridge removed)'}</span>
+      <button class="ss-knap-lille" onclick="ssFjernSpiller(${i})" aria-label="Remove ${esc(p.navn)}">&times;</button>
     </li>`).join('');
 }
 
@@ -898,14 +933,14 @@ function ssSletHold(navn) {
 
 function ssRenderHoldliste() {
   const hold = ssHentHold();
-  const navne = Object.keys(hold).sort((a, b) => a.localeCompare(b, 'da'));
+  const navne = Object.keys(hold).sort((a, b) => a.localeCompare(b, 'en'));
   document.getElementById('ss-holdliste').innerHTML = navne.length === 0
-    ? '<li style="font-style:italic;color:var(--brun);">Ingen gemte hold endnu.</li>'
+    ? '<li style="font-style:italic;color:var(--brun);">No saved teams yet.</li>'
     : navne.map(n => `
       <li>
-        <span class="ss-hold-navn">${esc(n)} <small>(${hold[n].length} spillere)</small></span>
-        <button class="ss-knap-lille" onclick="ssIndlaesHold(${JSON.stringify(n).replace(/"/g, '&quot;')})">Indlæs</button>
-        <button class="ss-knap-lille" onclick="ssSletHold(${JSON.stringify(n).replace(/"/g, '&quot;')})" aria-label="Slet ${esc(n)}">Slet</button>
+        <span class="ss-hold-navn">${esc(n)} <small>(${hold[n].length} player${hold[n].length === 1 ? '' : 's'})</small></span>
+        <button class="ss-knap-lille" onclick="ssIndlaesHold(${JSON.stringify(n).replace(/"/g, '&quot;')})">Load</button>
+        <button class="ss-knap-lille" onclick="ssSletHold(${JSON.stringify(n).replace(/"/g, '&quot;')})" aria-label="Delete ${esc(n)}">Delete</button>
       </li>`).join('');
 }
 
