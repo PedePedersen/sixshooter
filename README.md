@@ -56,7 +56,8 @@ pergament-stilen er bevaret. Ovenpå:
 
 ## Android (APK)
 
-WebView-wrapper-projektet ligger i `~/sixshooter-apk/` (udenfor dette repo):
+WebView-wrapper-projektet ligger i `~/sixshooter-apk/` — eget repo:
+[PedePedersen/sixshooter-apk](https://github.com/PedePedersen/sixshooter-apk).
 app-navn "Six Shooter", package `dk.dustytales.sixshooter`, portrait-only,
 fullscreen immersive, ingen internet-permission. `sixshooter.html` +
 `assets/` kopieres ind som Android-assets ved build — kopiér dem ind igen
