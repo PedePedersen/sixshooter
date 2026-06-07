@@ -51,8 +51,28 @@
     gap: 3.5vw;
     padding: 4vw 0 max(6vw, env(safe-area-inset-bottom));
   }
-  /* Hovedsiden centrerer tromle + knapper lodret — ren og luftig */
+  /* Hovedsiden: titel øverst, footer nederst — auto-margener på begge
+     absorberer den ledige plads ligeligt, så tromle/resultat/knapper
+     forbliver lodret centreret imellem dem (layoutet er stadig fast). */
   #ss-side-hoved { justify-content: center; gap: 6vw; }
+  /* Sidepadding holder titlen fri af de faste hjørneknapper (2×52px + luft)
+     på smalle skærme; let nedtonet størrelse ift. opsætningssidens h1. */
+  /* Titlen starter UNDER de faste hjørneknapper (top 3vw + 52px høje), så
+     den kan stå stor og centreret uden at kollidere med dem ved nogen
+     skærmbredde — BleedingCowboys er for bred til at dele række med dem. */
+  #ss-hoved-titel {
+    margin-top: calc(52px + 1vw);
+    margin-bottom: auto;
+    font-size: clamp(2rem, 9vw, 3.6rem);
+  }
+  .ss-footer {
+    margin-top: auto;
+    font-family: 'OldNewspaperTypes', monospace;
+    font-size: 0.85rem;
+    font-style: italic;
+    color: rgba(74, 42, 0, 0.55);   /* dæmpet brun-mørk mod pergamentet */
+    text-align: center;
+  }
 
   /* Diskrete hjørneknapper (restart + tandhjul på hovedsiden; × på
      opsætningssiden via .ss-hjoerne-fast) */
@@ -340,6 +360,8 @@
   <!-- ── Hovedside: kun tromlen + spin/fortsæt-knapper (så ren som muligt).
        Opsætningen tilgås via tandhjulet i hjørnet. ─────────────────────── -->
   <div id="ss-side-hoved" class="ss-side">
+    <h1 id="ss-hoved-titel">Six Shooter</h1>
+
     <!-- Diskrete hjørneknapper: restart (læg alle patroner i igen) + tandhjul -->
     <div class="ss-hjoerne-gruppe">
       <button class="ss-hjoerne-btn" onclick="ssNulstil()" aria-label="Restart — reload all cartridges" title="Restart — reload all cartridges">
@@ -373,6 +395,8 @@
                 aria-label="Remove the winner's cartridge and spin again" title="Remove the winner's cartridge and spin again"></button>
       </div>
     </div>
+
+    <footer class="ss-footer">From the Dusty Tales Saloon</footer>
   </div>
 
   <!-- ── Opsætningsside: spillere + hold. Vises/skjules med CSS. ───────── -->
